@@ -69,8 +69,8 @@
 
 
 ; valid if0
-(define (is-valid-if0? if-exp)
-  (and (eq? (first if-exp) 'if0) (= 4 (length if-exp))))
+(define (is-valid-if0? x)
+  (and (eq? (first x) 'if0) (= 4 (length x))))
 
 
 ;functions used to find if there are multiple bindings---------------------------------------------
@@ -90,12 +90,6 @@
    empty
    bindings))
 ;-----------------------------------------------------------------------------------------------------------
-; valid function
-(define (is-valid-fun? fun-exp)
-  (and (= 3 (length fun-exp))
-       (list? (second fun-exp))
-       (andmap symbol? (second fun-exp))))
-
 
 
 ;; parse : (s-exp) -> CFWAE
