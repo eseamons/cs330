@@ -70,8 +70,26 @@
 
 ; valid if0
 (define (is-valid-if0? if-exp)
-  (and (eq? (first if-exp) 'if0) (= 4 (length if-exp))))
+  (and (eq? (first if-exp) 'if0)
+       (= 4 (length if-exp))))
 
+
+;functions used to find if duplicate identifiers in fun
+(define (is-in-id-list? id id-list)
+    (ormap
+   (lambda (x)
+     (symbol=? id x))
+   id-list))
+
+(define (duplicate-ids-in-fun? id-list)
+  (foldr
+   (lambda (a b)
+           (if (is-in-id-list? a b)
+               (error 'parse "Duplicate identifiers")
+               (cons a b)
+                ))
+   empty
+   id-list))
 
 ;functions used to find if there are multiple bindings---------------------------------------------
 (define (is-in-binding-list? bind lst)
@@ -94,6 +112,7 @@
 (define (is-valid-fun? fun-exp)
   (and (= 3 (length fun-exp))
        (list? (second fun-exp))
+       (not (empty? (second fun-exp)))
        (andmap symbol? (second fun-exp))))
 
 
@@ -121,6 +140,12 @@
             (error 'parse "Illegal syntax"))]
        [(is-valid-binop? s-exp)
         (binop (lookup-op (first s-exp)) (parse (second s-exp)) (parse (third s-exp)))]
+       [(eq? (first s-exp) 'fun)
+        (if (is-valid-fun? s-exp)
+            (fun
+             (duplicate-ids-in-fun? (second s-exp))
+             (parse (third s-exp)))
+            (error 'parse "Illegal syntax"))]
        [else  (error 'parse "Illegal syntax")]
        )]
      [(is-valid-identifier? s-exp)
@@ -208,6 +233,9 @@
 (test (parse '(if0 x x x)) (if0 (id 'x) (id 'x) (id 'x)))
 (test/exn (parse '(if0 (+ 1 2) (+ 3 4))) "Illegal syntax")
 (test/exn (parse 'if0) "Illegal syntax")
-
-
+(test (parse '(fun (a b) (* a b))) (fun '(a b) (binop * (id 'a) (id 'b))))
+(test (parse '(fun (x) (+ x x))) (fun '(x) (binop + (id 'x) (id 'x))))
+(test/exn (parse '(fun (x x) (+ x x))) "Duplicate identifiers")
+(test (parse '(fun (x) x)) (fun '(x) (id 'x)))
+(test (parse '(fun (x) (/ y x))) (fun '(x) (binop / (id 'y) (id 'x))))
 
