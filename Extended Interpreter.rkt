@@ -48,6 +48,7 @@
   (and (symbol? x)
        (eq? #f (lookup-op x))
        (not (eq? x 'if0))
+       (not (eq? x 'fun))
        ))
 
 ; valid binop
@@ -112,7 +113,6 @@
 (define (is-valid-fun? fun-exp)
   (and (= 3 (length fun-exp))
        (list? (second fun-exp))
-       (not (empty? (second fun-exp)))
        (andmap symbol? (second fun-exp))))
 
 
@@ -146,7 +146,13 @@
              (duplicate-ids-in-fun? (second s-exp))
              (parse (third s-exp)))
             (error 'parse "Illegal syntax"))]
-       [else  (error 'parse "Illegal syntax")]
+       [else  (app
+               (parse (first s-exp))
+               (foldr
+                (lambda (a b)
+                  (cons (parse a) b))
+                empty
+                (rest s-exp)))]
        )]
      [(is-valid-identifier? s-exp)
       (id s-exp)]
@@ -228,14 +234,16 @@
 
 
 ;----------------------------------------------------------------------------------------------------------
-; new test for this lab
-(test (parse '(if0 0 (+ 1 2) (+ 3 4))) (if0 ( num 0) (binop + (num 1) (num 2)) (binop + (num 3) (num 4))))
+; new tests for this lab
+(test (parse '(if0 0 (+ 1 2) (+ 3 4))) (if0 (num 0) (binop + (num 1) (num 2)) (binop + (num 3) (num 4))))
 (test (parse '(if0 x x x)) (if0 (id 'x) (id 'x) (id 'x)))
 (test/exn (parse '(if0 (+ 1 2) (+ 3 4))) "Illegal syntax")
 (test/exn (parse 'if0) "Illegal syntax")
+(test/exn (parse 'fun) "Illegal syntax")
 (test (parse '(fun (a b) (* a b))) (fun '(a b) (binop * (id 'a) (id 'b))))
 (test (parse '(fun (x) (+ x x))) (fun '(x) (binop + (id 'x) (id 'x))))
 (test/exn (parse '(fun (x x) (+ x x))) "Duplicate identifiers")
+(test/exn (parse '(with ([x 5] [x 7]) (+ 1 2))) "Duplicate identifiers")
 (test (parse '(fun (x) x)) (fun '(x) (id 'x)))
 (test (parse '(fun (x) (/ y x))) (fun '(x) (binop / (id 'y) (id 'x))))
-
+(test (parse '(fun () x)) (fun '() (id 'x)))
