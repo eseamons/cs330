@@ -119,49 +119,97 @@
 
 ;; parse : (s-exp) -> CFWAE
 ;; Parses s-exp into a CFWAE
-(define (parse s-exp)
+(define (parse sexp)
   (cond
-    [(number? s-exp) (num s-exp)]
-    [(list? s-exp)
+    [(number? sexp) (num sexp)]
+    [(list? sexp)
      (cond
-       [ (empty? s-exp) (error 'parse "Illegal syntax")]
-       [ (eqv? with (lookup-op (first s-exp)))
-         (if (is-valid-with? s-exp)
+       [ (empty? sexp) (error 'parse "Illegal syntax")]
+       [ (eqv? with (lookup-op (first sexp)))
+         (if (is-valid-with? sexp)
              (with
               (check-multiple-bindings
                (map
                 (lambda (x)
-                  (binding (first x) (parse (second x)))) (second s-exp)))
-              (parse (third s-exp)))
+                  (binding (first x) (parse (second x)))) (second sexp)))
+              (parse (third sexp)))
              (error 'parse "Illegal syntax"))]
-       [(eq? (first s-exp) 'if0)
-        (if (is-valid-if0? s-exp)
-            (if0 (parse (second s-exp)) (parse (third s-exp)) (parse (fourth s-exp)))
+       [(eq? (first sexp) 'if0)
+        (if (is-valid-if0? sexp)
+            (if0 (parse (second sexp)) (parse (third sexp)) (parse (fourth sexp)))
             (error 'parse "Illegal syntax"))]
-       [(is-valid-binop? s-exp)
-        (binop (lookup-op (first s-exp)) (parse (second s-exp)) (parse (third s-exp)))]
-       [(eq? (first s-exp) 'fun)
-        (if (is-valid-fun? s-exp)
+       [(is-valid-binop? sexp)
+        (binop (lookup-op (first sexp)) (parse (second sexp)) (parse (third sexp)))]
+       [(eq? (first sexp) 'fun)
+        (if (is-valid-fun? sexp)
             (fun
-             (duplicate-ids-in-fun? (second s-exp))
-             (parse (third s-exp)))
+             (duplicate-ids-in-fun? (second sexp))
+             (parse (third sexp)))
             (error 'parse "Illegal syntax"))]
        [else  (app
-               (parse (first s-exp))
+               (parse (first sexp))
                (foldr
                 (lambda (a b)
                   (cons (parse a) b))
                 empty
-                (rest s-exp)))]
+                (rest sexp)))]
        )]
-     [(is-valid-identifier? s-exp)
-      (id s-exp)]
+     [(is-valid-identifier? sexp)
+      (id sexp)]
     [else (error 'parse "Illegal syntax")]))
 
+(define (eval-binop op l r)
+  (numV (op (numV-n l) (numV-n r))))
 
 
 
 
+(define (check-division-by-zero exp)
+  (if (and (num? (binop-rhs exp))
+           (= 0 (num-n (binop-rhs exp)))
+           (eqv? / (binop-op exp)))
+      #t
+      #f))
+
+(define (check-non-numeric-value exp)
+  (if (not (numV? exp))
+      (error 'check-non-numeric-value "Non-Numeric Value in if statement")
+      exp))
+
+
+;; lookup : symbol Env -> FWAE-Value
+;; looks up an identifier in an environment and returns the value
+;; bound to it (or reports error if not found)
+(define (lookup name env)
+  (type-case Env env
+    [mtEnv () (error 'lookup "Unbound Identifier")]
+    [anEnv (bound-name bound-value rest-env)
+           (if (symbol=? bound-name name)
+               bound-value
+               (lookup name rest-env))]))
+
+
+; interp : CFWAE Env -> CFWAE-Value
+; This procedure interprets the given CFWAE in the environment
+; and produces a result in the form of a CFWAE-Value
+(define (interp expr env)
+  (type-case CFWAE expr
+    [num (n) (numV n)]
+    [binop (op l r)
+           (if (check-division-by-zero (binop op
+                                               (num (numV-n (interp l env)))
+                                               (num (numV-n (interp r env)))))
+               (error 'interp "Division by zero")
+               (eval-binop op (interp l env) (interp r env)))]
+    [id (v) (lookup v env)]
+    [if0 (c t e)
+         (if (zero? (numV-n
+                     (check-non-numeric-value
+                      (interp c env))))
+             (interp t env)
+             (interp e env))]
+    [else (error 'interp "unimplemented")]
+    ))
 
 ;; test cases for lookup-op function
 (test (lookup-op '+) +)
@@ -234,6 +282,41 @@
 
 
 ;----------------------------------------------------------------------------------------------------------
+; extra parse tests
+
+; legal syntax
+
+(test (parse '(+ 1 (+ 1 2))) (binop + (num 1) (binop + (num 1) (num 2))))
+(test (parse '(/ 10 (/ 100 10))) (binop / (num 10) (binop / (num 100) (num 10))))
+(test (parse '(* 3 4)) (binop * (num 3) (num 4)))
+(test (parse '(with ([x 2]) (with ([x 1]) x))) (with (list (binding 'x (num 2))) (with (list (binding 'x (num 1))) (id 'x))))
+(test (parse '(2 3)) (app (num 2) (list (num 3))))
+(test (parse '(/ 10 (100 10))) (binop / (num 10) (app (num 100) (list (num 10)))))
+(test (parse '(with ([x 5] [y 6] [z 7]) (+ 1 2))) (with (list (binding 'x (num 5)) (binding 'y (num 6)) (binding 'z (num 7))) (binop + (num 1) (num 2))))
+
+
+; illegal syntax
+(test/exn (parse '(with ([x 1] [x 2]) (+ x x))) "Duplicate identifiers")
+(test/exn (parse true) "Illegal syntax")
+(test/exn (parse '(+ 3 +)) "Illegal syntax")
+(test/exn (parse '(4 3 +)) "Illegal syntax")
+(test/exn (parse '(4 + 3 + 5)) "Illegal syntax")
+(test/exn (parse '(5 + 6)) "Illegal syntax")
+(test/exn (parse '(with (+ 1 2))) "Illegal syntax")
+(test/exn (parse '(with [x 5] [y 6] (+ 1 2))) "Illegal syntax")
+(test/exn (parse '(with x (+ 1 2))) "Illegal syntax")
+(test/exn (parse '(with  (+ 1 2) ([x 1]))) "Illegal syntax")
+(test/exn (parse '(with x x)) "Illegal syntax")
+(test/exn (parse '(with () (+ 1 2))) "Illegal syntax")
+(test/exn (parse '(with (x) (+ 1 2))) "Illegal syntax")
+(test/exn (parse '(with ([+ 1]) (+ 1 2))) "Illegal syntax")
+(test/exn (parse '(with [x 1] (+ 1 2))) "Illegal syntax")
+(test/exn (parse "Test") "Illegal syntax")
+(test/exn (parse '(with ((x 5 6)) (+ 1 x))) "Illegal syntax")
+(test/exn (parse '(with ((42 6)) (+ 1 x))) "Illegal syntax")
+
+
+;----------------------------------------------------------------------------------------------------------
 ; new tests for this lab
 (test (parse '(if0 0 (+ 1 2) (+ 3 4))) (if0 (num 0) (binop + (num 1) (num 2)) (binop + (num 3) (num 4))))
 (test (parse '(if0 x x x)) (if0 (id 'x) (id 'x) (id 'x)))
@@ -247,3 +330,39 @@
 (test (parse '(fun (x) x)) (fun '(x) (id 'x)))
 (test (parse '(fun (x) (/ y x))) (fun '(x) (binop / (id 'y) (id 'x))))
 (test (parse '(fun () x)) (fun '() (id 'x)))
+
+
+
+
+
+; Function: calc
+; a number case test?
+;  a + case test?
+; a - case test?
+; a * case test?
+; a / case test?
+; a divide by zero case test?
+(test/exn (interp (parse '(/ 6 0)) (mtEnv)) "Division by zero")
+(test/exn (interp (parse '(/ (+ 6 0) 0)) (mtEnv)) "Division by zero")
+(test/exn (interp (parse '(/ (/ 6 0) 1)) (mtEnv)) "Division by zero")
+
+
+; interp test cases
+(test (interp (parse '(+ 1 2)) (mtEnv)) (numV 3))
+(test (interp (parse '(+ 1 (/ 100 10))) (mtEnv)) (numV 11))
+(test (interp (parse '(+ (* 4 (+ 1 2)) (/ 100 10))) (mtEnv)) (numV 22))
+(test (interp (parse '(+ (* (- 6 1) (+ 1 2)) (/ 100 10))) (mtEnv)) (numV 25))
+(test (interp (parse '5) (mtEnv)) (numV 5))
+(test/exn (interp (parse '(+ x x)) (mtEnv)) "Unbound Identifier")
+(test/exn (interp (parse 'x) (mtEnv)) "Unbound Identifier")
+
+
+
+
+
+; if tests
+
+(test (interp (parse '(if0 0 1 2)) (mtEnv)) (numV 1))
+(test (interp (parse '(if0 7 1 2)) (mtEnv)) (numV 2))
+(test (interp (parse '(if0 (- 1 1) (+ 3 4) 0)) (mtEnv)) (numV 7))
+(test (interp (parse '(if0 (+ 1 1) 12 (/ 100 10))) (mtEnv)) (numV 10))
