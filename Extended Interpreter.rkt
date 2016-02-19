@@ -117,8 +117,8 @@
 
 
 
-;; parse : (s-exp) -> CFWAE
-;; Parses s-exp into a CFWAE
+;; parse : (sexp) -> CFWAE
+;; Parses sexp into a CFWAE
 (define (parse sexp)
   (cond
     [(number? sexp) (num sexp)]
@@ -173,7 +173,7 @@
 
 (define (check-non-numeric-value exp)
   (if (not (numV? exp))
-      (error 'check-non-numeric-value "Non-Numeric Value in if statement")
+      (error 'check-non-numeric-value "Non-numeric value")
       exp))
 
 ;; lookup : symbol Env -> FWAE-Value
@@ -199,6 +199,11 @@
    env
    lob))
 
+(define (is-function? the-func)
+  (if (closureV? the-func)
+      the-func
+      (error 'is-function? "Not a function")))
+
 
 ; interp : CFWAE Env -> CFWAE-Value
 ; This procedure interprets the given CFWAE in the environment
@@ -208,8 +213,8 @@
     [num (n) (numV n)]
     [binop (op l r)
            (if (check-division-by-zero (binop op
-                                               (num (numV-n (interp l env)))
-                                               (num (numV-n (interp r env)))))
+                                               (num (numV-n (check-non-numeric-value (interp l env))))
+                                               (num (numV-n (check-non-numeric-value (interp r env))))))
                (error 'interp "Division by zero")
                (eval-binop op (interp l env) (interp r env)))]
     [id (v) (lookup v env)]
@@ -225,7 +230,15 @@
            (extend-Env lob env))]
         [fun (args body)
          (closureV args body env)]
-    [else (error 'interp "unimplemented")]
+    [app (fun-expr arg-expr)
+         (local ([define fun-val (is-function?(interp fun-expr env))])
+           (app fun-expr arg-expr)
+           ;(interp (closureV-body fun-val)
+            ;       (anEnv (closureV-param fun-val)
+             ;             (interp arg-expr env)
+              ;            (closureV-env fun-val)))
+           )]
+    ;[else (error 'interp "unimplemented")]
     ))
 
 
@@ -245,65 +258,6 @@
 
 ;; test cases for rinterp evaluation
 
-; Feature: literals
-; an example of parsing a number expression
-(test (parse '12) (num 12))
-;a test case for a literal that is not a number
-(test/exn (parse "Test Case") "Illegal syntax")
-
-
-; Feature: binary operators
-; an example of parsing a + expression properly?
-(test (parse '(+ 1 2)) (binop + (num 1) (num 2)))
-; an example of parsing a - expression properly?
-(test (parse '(- 10 7)) (binop - (num 10) (num 7)))
-; an example of parsing a * expression properly?
-(test (parse '(* 3 4)) (binop * (num 3) (num 4)))
-; an example of parsing a / expression properly?
-(test (parse '(/ 100 10)) (binop / (num 100) (num 10)))
-;a test case for: too many pieces
-(test/exn (parse '(+ 1 2 3 4 5 6 7)) "Illegal syntax")
-;Is there a test case for: too few pieces
-(test/exn (parse '(* 27)) "Illegal syntax")
-
-
-
-; Feature: with
-; an example of parsing a with expression properly
-(test (parse '(with ([x 5]) (+ 1 2))) (with (list (binding 'x (num 5))) (binop + (num 1) (num 2))))
-; a test case for: too few pieces in the expression 
-(test/exn (parse '(with ((y 12)))) "Illegal syntax")
-; a test case for: too many pieces in the expression
-(test/exn (parse '(with ([x 1]) (/ 100 20) (+ 1 2))) "Illegal syntax")
-; a test case for: invalid bindings list (not a list) 
-(test/exn (parse '(with x (+ 1 x) (+ 2 x))) "Illegal syntax")
-; a test case for: invalid binding within the bindings (not a list)? 
-(test/exn (parse '(with (x 5) (+ 1 x) (+ 2 x))) "Illegal syntax")
-; a test case for: invalid binding (too few pieces) 
-(test/exn (parse '(with ([z]) (/ z 100))) "Illegal syntax")
-; a test case for: invalid binding (too many pieces)? 
-(test/exn (parse '(with ([x 4 3]) (* x x))) "Illegal syntax")
-; Is there a test case for: invalid binding (first item not a symbol)?
-(test/exn (parse '(with ([3 12]) (+ 1 x))) "Illegal syntax")
-
-; Feature: id
-; an example of parsing a id expression properly
-(test (parse 'x) (id 'x))
-(test (parse '(+ x x)) (binop + (id 'x) (id 'x)))
-; a test case for: not an id (+)
-(test/exn (parse '+) "Illegal syntax")
-; a test case for: not an id (-)
-(test/exn (parse '-) "Illegal syntax")
-; a test case for: not an id (*)
-(test/exn (parse '*) "Illegal syntax")
-; a test case for: not an id (/)
-(test/exn (parse '/) "Illegal syntax")
-; a test case for: not an id (with)
-(test/exn (parse 'with) "Illegal syntax")
-
-; Other:
-; a test case for an expression with no operator (an empty list) 
-(test/exn (parse '()) "Illegal syntax")
 
 
 ;----------------------------------------------------------------------------------------------------------
@@ -350,8 +304,6 @@
 (test/exn (parse 'fun) "Illegal syntax")
 (test (parse '(fun (a b) (* a b))) (fun '(a b) (binop * (id 'a) (id 'b))))
 (test (parse '(fun (x) (+ x x))) (fun '(x) (binop + (id 'x) (id 'x))))
-(test/exn (parse '(fun (x x) (+ x x))) "Duplicate identifiers")
-(test/exn (parse '(with ([x 5] [x 7]) (+ 1 2))) "Duplicate identifiers")
 (test (parse '(fun (x) x)) (fun '(x) (id 'x)))
 (test (parse '(fun (x) (/ y x))) (fun '(x) (binop / (id 'y) (id 'x))))
 (test (parse '(fun () x)) (fun '() (id 'x)))
@@ -434,6 +386,114 @@
 (test (run '(if0 (+ 1 1) 12 (/ 100 10))) (numV 10))
 (test (run '(if0 (with ([x 1]) (with ([x 4] [z (+ x 2)]) (+ x z))) 12 13)) (numV 13))
 (test (run '(if0 (with ([x 1]) (- x 1)) 12 13)) (numV 12))
+(test/exn (run '(if0 (fun (x) (+ x x)) 12 13)) "Non-numeric value")
 
 ; fun tests
 (test (run '(fun (x y) (+ x y))) (closureV '(x y) (binop + (id 'x) (id 'y)) (mtEnv)))
+(test (run '(with ([x 3] [y 3]) (fun (x y) (* x y)))) (closureV '(x y) (binop * (id 'x) (id 'y)) (anEnv 'x (numV 3) (anEnv 'y (numV 3) (mtEnv)))))
+(test/exn (run '(with ([x (fun (x) x)]) (+ x x))) "Non-numeric value")
+(test (run '(with ([x (fun (x) x)]) x)) (closureV '(x) (id 'x) (mtEnv)))
+
+
+(test/exn (run '(+ (fun (x) x) 7)) "Non-numeric value")
+(test/exn (run '(+ 20 (fun (y) y))) "Non-numeric value")
+(test/exn (run '(- (fun (x) x) 7)) "Non-numeric value")
+(test/exn (run '(- 20 (fun (y) y))) "Non-numeric value")
+(test/exn (run '(* (fun (x) x) 7)) "Non-numeric value")
+(test/exn (run '(* 20 (fun (y) y))) "Non-numeric value")
+(test/exn (run '(/ (fun (x) x) 7)) "Non-numeric value")
+(test/exn (run '(/ 20 (fun (y) y))) "Non-numeric value")
+
+
+
+(parse '((fun (x y) (* x y)) 2 3))
+(run '(with ((f (with ([x 5]) (fun (y) (+ x y))))) f))
+
+;-----------------------------------------------------------------------------------------------------------------------------------------
+;-----------------------------------------------------------------------------------------------------------------------------------------
+;-----------------------------------------------------------------------------------------------------------------------------------------
+;-----------------------------------------------------------------------------------------------------------------------------------------
+
+;Function: parse
+
+; General:
+; * Is the function correct? y
+; * Is the function documented correctly (i.e. contract and purpose statement)? y
+
+; Feature: literals
+; an example of parsing a number expression
+(test (parse '12) (num 12))
+;a test case for a literal that is not a number
+(test/exn (parse "Test Case") "Illegal syntax")
+
+; Feature: binary operators
+; an example of parsing a + expression properly?
+(test (parse '(+ 1 2)) (binop + (num 1) (num 2)))
+; an example of parsing a - expression properly?
+(test (parse '(- 10 7)) (binop - (num 10) (num 7)))
+; an example of parsing a * expression properly?
+(test (parse '(* 3 4)) (binop * (num 3) (num 4)))
+; an example of parsing a / expression properly?
+(test (parse '(/ 100 10)) (binop / (num 100) (num 10)))
+;a test case for: too many pieces
+(test/exn (parse '(+ 1 2 3 4 5 6 7)) "Illegal syntax")
+;Is there a test case for: too few pieces
+(test/exn (parse '(* 27)) "Illegal syntax")
+
+; Feature: with
+; an example of parsing a with expression properly
+(test (parse '(with ([x 5]) (+ 1 2))) (with (list (binding 'x (num 5))) (binop + (num 1) (num 2))))
+; a test case for: too few pieces in the expression 
+(test/exn (parse '(with ((y 12)))) "Illegal syntax")
+; a test case for: too many pieces in the expression
+(test/exn (parse '(with ([x 1]) (/ 100 20) (+ 1 2))) "Illegal syntax")
+; a test case for: invalid bindings list (not a list) 
+(test/exn (parse '(with x (+ 1 x) (+ 2 x))) "Illegal syntax") 
+; a test case for: invalid binding within the bindings (not a list)? 
+(test/exn (parse '(with (x 5) (+ 1 x) (+ 2 x))) "Illegal syntax")
+; a test case for: invalid binding (too few pieces) 
+(test/exn (parse '(with ([z]) (/ z 100))) "Illegal syntax")
+; a test case for: invalid binding (too many pieces)? 
+(test/exn (parse '(with ([x 4 3]) (* x x))) "Illegal syntax")
+; Is there a test case for: invalid binding (first item not a symbol)?
+(test/exn (parse '(with ([3 12]) (+ 1 x))) "Illegal syntax")
+; Is there a test case for: invalid binding (duplicated id)
+(test/exn (parse '(fun (x x) (+ x x))) "Duplicate identifiers")
+(test/exn (parse '(with ([x 5] [x 7]) (+ 1 2))) "Duplicate identifiers")
+
+; Feature: id
+; an example of parsing a id expression properly
+(test (parse 'x) (id 'x))
+(test (parse '(+ x x)) (binop + (id 'x) (id 'x)))
+; a test case for: not an id (+)
+(test/exn (parse '+) "Illegal syntax")
+; a test case for: not an id (-)
+(test/exn (parse '-) "Illegal syntax")
+; a test case for: not an id (*)
+(test/exn (parse '*) "Illegal syntax")
+; a test case for: not an id (/)
+(test/exn (parse '/) "Illegal syntax")
+; a test case for: not an id (with)
+(test/exn (parse 'with) "Illegal syntax")
+
+; Other:
+; a test case for an expression with no operator (an empty list) 
+(test/exn (parse '()) "Illegal syntax")
+
+ ;Feature: app
+ ; * Is there an example of parsing an app expression properly?
+ (test (parse '((fun (x y) (* x y)) 2 3)) (app (fun '(x y) (binop * (id 'x) (id 'y))) (list (num 2) (num 3))))
+
+ ;Feature: fun
+ ; * Is there a fun (evaluates to closure) case test?
+(test (run '(fun (x) x)) (closureV '(x) (id 'x) (mtEnv)))
+ ;  * Is there a fun (evaluates to closure with captured binding) case test?
+(test (run '(with ([x 8]) (fun (y) (+ x y)))) (closureV '(y) (binop + (id 'x) (id 'y)) (anEnv 'x (numV 8) (mtEnv))))
+(test (run '(with ((f (with ([x 5]) (fun (y) (+ x y))))) f)) (closureV '(y) (binop + (id 'x) (id 'y)) (anEnv 'x (numV 5) (mtEnv))))
+ 
+ ;Feature: app
+ ; * Is there a working app test case?
+ ;* Is there an app (catches non-function) case test?
+ ;* Is there an app (catches too few args) case test?
+ ;* Is there an app (catches too many args) case test?
+ ;* Is there an app (static, not dynamic scope) case test?
