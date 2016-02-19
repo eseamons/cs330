@@ -176,7 +176,6 @@
       (error 'check-non-numeric-value "Non-Numeric Value in if statement")
       exp))
 
-
 ;; lookup : symbol Env -> FWAE-Value
 ;; looks up an identifier in an environment and returns the value
 ;; bound to it (or reports error if not found)
@@ -187,6 +186,18 @@
            (if (symbol=? bound-name name)
                bound-value
                (lookup name rest-env))]))
+
+
+
+(define (extend-Env lob env)
+  (foldr
+   (lambda (a b)
+     (anEnv
+      (binding-name a)
+      (interp (binding-named-expr a) env)
+      b))
+   env
+   lob))
 
 
 ; interp : CFWAE Env -> CFWAE-Value
@@ -208,8 +219,20 @@
                       (interp c env))))
              (interp t env)
              (interp e env))]
+    [with (lob body)
+          (interp
+           body
+           (extend-Env lob env))]
     [else (error 'interp "unimplemented")]
     ))
+
+
+;; run : s-expression -> numV
+;; parses then evaluates an s-expression in the CFWAE language
+(define (run expr) 
+  (interp 
+   (parse expr)
+   (mtEnv)))
 
 ;; test cases for lookup-op function
 (test (lookup-op '+) +)
@@ -251,7 +274,7 @@
 ; a test case for: too many pieces in the expression
 (test/exn (parse '(with ([x 1]) (/ 100 20) (+ 1 2))) "Illegal syntax")
 ; a test case for: invalid bindings list (not a list) 
-(test/exn (parse '(with [x 1] (+ 1 2))) "Illegal syntax")
+(test/exn (parse '(with x (+ 1 x) (+ 2 x))) "Illegal syntax")
 ; a test case for: invalid binding within the bindings (not a list)? 
 (test/exn (parse '(with (x 5) (+ 1 x) (+ 2 x))) "Illegal syntax")
 ; a test case for: invalid binding (too few pieces) 
@@ -335,7 +358,7 @@
 
 
 
-; Function: calc
+; Function: interp
 ; a number case test?
 ;  a + case test?
 ; a - case test?
@@ -348,21 +371,64 @@
 
 
 ; interp test cases
-(test (interp (parse '(+ 1 2)) (mtEnv)) (numV 3))
-(test (interp (parse '(+ 1 (/ 100 10))) (mtEnv)) (numV 11))
-(test (interp (parse '(+ (* 4 (+ 1 2)) (/ 100 10))) (mtEnv)) (numV 22))
-(test (interp (parse '(+ (* (- 6 1) (+ 1 2)) (/ 100 10))) (mtEnv)) (numV 25))
-(test (interp (parse '5) (mtEnv)) (numV 5))
-(test/exn (interp (parse '(+ x x)) (mtEnv)) "Unbound Identifier")
-(test/exn (interp (parse 'x) (mtEnv)) "Unbound Identifier")
+(test (run '(+ 1 2)) (numV 3))
+(test (run '(+ 1 (/ 100 10))) (numV 11))
+(test (run '(+ (* 4 (+ 1 2)) (/ 100 10))) (numV 22))
+(test (run '(+ (* (- 6 1) (+ 1 2)) (/ 100 10))) (numV 25))
+(test (run '5) (numV 5))
+(test/exn (run '(+ x x)) "Unbound Identifier")
+(test/exn (run 'x) "Unbound Identifier")
 
 
+; Function: calc
+; a number case test?
+;  a + case test?
+; a - case test?
+; a * case test?
+; a / case test?
+; a case that shows referencing an identifier
+(test (run '(with ((x 26)) x)) (numV 26))
+; an id (unbound) case test
+(test/exn (run '(with ([y 11]) x)) "Unbound Identifier")
+; a with (basic, bound id) case test
+(test (run '(with ([x 3]) (* x x))) (numV 9))
+; a with (shadowing) case test
+(test (run '(with ([x 3]) (with ((x 4)) (+ x 20) ))) (numV 24))
+; a with (shadowing in body but not in initialization expression) case test 
+(test (run '(with ([y 7] [x 4]) (with ([x (+ x 1)]) (+ y x)))) (numV 12))
 
+
+(test (run '(+ 1 2)) (numV 3))
+(test (run '(+ 1 (/ 100 10))) (numV 11))
+(test (run '(+ (* 4 (+ 1 2)) (/ 100 10))) (numV 22))
+(test (run '(+ (* (- 6 1) (+ 1 2)) (/ 100 10))) (numV 25))
+(test (run '5) (numV 5))
+(test (run '(with ([x 5]) x)) (numV 5))
+(test (run '(with ([x 5]) (+ x x))) (numV 10))
+(test (run '(with ([y 11]) y)) (numV 11))
+(test (run '(with ([x 5] [y 11]) y)) (numV 11))
+(test (run '(with ([x 5] [y 10] [z 30]) 13)) (numV 13))
+(test (run '(with ([x 1] [y 3] [z 4]) (+ x (* y z)))) (numV 13))
+(test (run '(with ([w 2] [x 1] [y 3] [z 4]) (+ (* x z) (* w y)))) (numV 10))
+(test (run '(with ([w 2] [x 1] [y 3] [z 4]) (* (* x z) (* w y)))) (numV 24))
+(test (run '(with ([x 2] [y 4] [z 6] [a 7] [b 20]) (+ a b))) (numV 27))
+(test (run '(with ([x 2] [y 4] [z 6] [a 7] [b 20]) (+ x (+ a b)))) (numV 29))
+
+(test/exn (run '(+ x x)) "Unbound Identifier")
+(test/exn (run 'x) "Unbound Identifier")
+(test/exn (run '(with ([y x]) y)) "Unbound Identifier")
+(test/exn (run '(with ([y 11]) (+ x x))) "Unbound Identifier")
+(test/exn (run '(with ([x 5] [y 10] [z 30]) a)) "Unbound Identifier")
+(test/exn (run '(with ([x 5] [y 10] [z 30]) (+ a 1))) "Unbound Identifier")
+
+(test (run '(with ([x 1]) (with ([x 4] [z (+ x 2)]) (+ x z)))) (numV 7))
 
 
 ; if tests
 
-(test (interp (parse '(if0 0 1 2)) (mtEnv)) (numV 1))
-(test (interp (parse '(if0 7 1 2)) (mtEnv)) (numV 2))
-(test (interp (parse '(if0 (- 1 1) (+ 3 4) 0)) (mtEnv)) (numV 7))
-(test (interp (parse '(if0 (+ 1 1) 12 (/ 100 10))) (mtEnv)) (numV 10))
+(test (run '(if0 0 1 2)) (numV 1))
+(test (run '(if0 7 1 2)) (numV 2))
+(test (run '(if0 (- 1 1) (+ 3 4) 0)) (numV 7))
+(test (run '(if0 (+ 1 1) 12 (/ 100 10))) (numV 10))
+(test (run '(if0 (with ([x 1]) (with ([x 4] [z (+ x 2)]) (+ x z))) 12 13)) (numV 13))
+(test (run '(if0 (with ([x 1]) (- x 1)) 12 13)) (numV 12))
