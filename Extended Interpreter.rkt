@@ -223,6 +223,8 @@
           (interp
            body
            (extend-Env lob env))]
+        [fun (args body)
+         (closureV args body env)]
     [else (error 'interp "unimplemented")]
     ))
 
@@ -432,3 +434,6 @@
 (test (run '(if0 (+ 1 1) 12 (/ 100 10))) (numV 10))
 (test (run '(if0 (with ([x 1]) (with ([x 4] [z (+ x 2)]) (+ x z))) 12 13)) (numV 13))
 (test (run '(if0 (with ([x 1]) (- x 1)) 12 13)) (numV 12))
+
+; fun tests
+(test (run '(fun (x y) (+ x y))) (closureV '(x y) (binop + (id 'x) (id 'y)) (mtEnv)))
