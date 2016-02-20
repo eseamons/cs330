@@ -204,6 +204,13 @@
       the-func
       (error 'is-function? "Not a function")))
 
+(define (map-params-args-to-bindings params args)
+  (map
+   (lambda (a b)
+     (binding a b))
+   params
+   args))
+
 
 ; interp : CFWAE Env -> CFWAE-Value
 ; This procedure interprets the given CFWAE in the environment
@@ -235,16 +242,24 @@
            (if
             (= (length (closureV-params closure-val))
                (length arg-expr))
-            arg-expr
+            (interp (closureV-body closure-val)
+                    (extend-Env
+                     (map-params-args-to-bindings (closureV-params closure-val) arg-expr)
+                     (closureV-env closure-val)))
             (error 'interp "Argument Mismatch")
-           ;(interp (closureV-body fun-val)
-            ;       (anEnv (closureV-param fun-val)
-             ;             (interp arg-expr env)
-              ;            (closureV-env fun-val)))
            ))]
-    ;[else (error 'interp "unimplemented")]
     ))
-;(if (
+
+; '(x)
+; (list (num 2))
+;map-params-args-to-bindings
+#|
+(interp (closureV-body fun-val)
+                   (anEnv (closureV-param closure-val)
+                          (interp arg-expr env)
+                          (closureV-env fun-val)))
+|#
+
 
 ;; run : s-expression -> numV
 ;; parses then evaluates an s-expression in the CFWAE language
@@ -410,8 +425,7 @@
 
 
 
-(parse '((fun (x y) (* x y)) 2 3))
-(run '(with ((f (with ([x 5]) (fun (y) (+ x y))))) f))
+
 
 ;-----------------------------------------------------------------------------------------------------------------------------------------
 ;-----------------------------------------------------------------------------------------------------------------------------------------
@@ -497,6 +511,8 @@
  
  ;Feature: app
  ; * Is there a working app test case?
+(test (run '((fun (x y) (+ x y)) 3 4)) (numV 7))
+(test (run '((fun (x y) (* x y)) 2 3)) (numV 6))
  ;* Is there an app (catches non-function) case test?
 (test/exn (run '(2 3)) "Not a function")
  ;* Is there an app (catches too few args) case test?
@@ -504,3 +520,6 @@
  ;* Is there an app (catches too many args) case test?
 (test/exn (run '((fun (x y) (+ x y)) 2 3 4)) "Argument Mismatch")
  ;* Is there an app (static, not dynamic scope) case test?
+
+(test (run '(with ((f (with ([x 5]) (fun (y) (+ x y))))) (with ((x 10)) (f 6)))) (numV 11))
+(test (run '(with ((f (with ([x 20]) (fun (y) (+ x y))))) (with ((x 10)) (f 6)))) (numV 26))
