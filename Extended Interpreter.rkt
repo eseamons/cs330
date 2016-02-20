@@ -231,16 +231,20 @@
         [fun (args body)
          (closureV args body env)]
     [app (fun-expr arg-expr)
-         (local ([define fun-val (is-function?(interp fun-expr env))])
-           (app fun-expr arg-expr)
+         (local ([define closure-val (is-function?(interp fun-expr env))])
+           (if
+            (= (length (closureV-params closure-val))
+               (length arg-expr))
+            arg-expr
+            (error 'interp "Argument Mismatch")
            ;(interp (closureV-body fun-val)
             ;       (anEnv (closureV-param fun-val)
              ;             (interp arg-expr env)
               ;            (closureV-env fun-val)))
-           )]
+           ))]
     ;[else (error 'interp "unimplemented")]
     ))
-
+;(if (
 
 ;; run : s-expression -> numV
 ;; parses then evaluates an s-expression in the CFWAE language
@@ -494,6 +498,9 @@
  ;Feature: app
  ; * Is there a working app test case?
  ;* Is there an app (catches non-function) case test?
+(test/exn (run '(2 3)) "Not a function")
  ;* Is there an app (catches too few args) case test?
+(test/exn (run '((fun (x y) (+ x y)) 1)) "Argument Mismatch") 
  ;* Is there an app (catches too many args) case test?
+(test/exn (run '((fun (x y) (+ x y)) 2 3 4)) "Argument Mismatch")
  ;* Is there an app (static, not dynamic scope) case test?
