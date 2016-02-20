@@ -337,10 +337,7 @@
 ; a - case test?
 ; a * case test?
 ; a / case test?
-; a divide by zero case test?
-(test/exn (interp (parse '(/ 6 0)) (mtEnv)) "Division by zero")
-(test/exn (interp (parse '(/ (+ 6 0) 0)) (mtEnv)) "Division by zero")
-(test/exn (interp (parse '(/ (/ 6 0) 1)) (mtEnv)) "Division by zero")
+
 
 
 ; interp test cases
@@ -353,22 +350,6 @@
 (test/exn (run 'x) "Unbound Identifier")
 
 
-; Function: calc
-; a number case test?
-;  a + case test?
-; a - case test?
-; a * case test?
-; a / case test?
-; a case that shows referencing an identifier
-(test (run '(with ((x 26)) x)) (numV 26))
-; an id (unbound) case test
-(test/exn (run '(with ([y 11]) x)) "Unbound Identifier")
-; a with (basic, bound id) case test
-(test (run '(with ([x 3]) (* x x))) (numV 9))
-; a with (shadowing) case test
-(test (run '(with ([x 3]) (with ((x 4)) (+ x 20) ))) (numV 24))
-; a with (shadowing in body but not in initialization expression) case test 
-(test (run '(with ([y 7] [x 4]) (with ([x (+ x 1)]) (+ y x)))) (numV 12))
 
 
 (test (run '(+ 1 2)) (numV 3))
@@ -502,13 +483,91 @@
  ; * Is there an example of parsing an app expression properly?
  (test (parse '((fun (x y) (* x y)) 2 3)) (app (fun '(x y) (binop * (id 'x) (id 'y))) (list (num 2) (num 3))))
 
+
+;Function: interp
+
+; General:
+; * Is the function correct? Y
+; * Is the function documented correctly (i.e. contract and purpose statement)? Y
+ 
+; Feature: literals
+; * Is there a number case test?
+(test (run '6) (numV 6))
+ 
+; Feature: binary operators
+; + test cases
+; * Is there a + case test?
+(test (run '(+ 6 7)) (numV 13))
+; * Is there a + (catch non-number, lhs) case test?
+(test/exn (run '(+ (fun (x) x) 7)) "Non-numeric value")
+;* Is there a + (catch non-number, rhs) case test?
+(test/exn (run '(+ 20 (fun (y) y))) "Non-numeric value")
+
+; - test cases
+; * Is there a - case test?
+(test (run '(- 20 5)) (numV 15))
+; * Is there a - (catch non-number, lhs) case test?
+(test/exn (run '(- (fun (x) x) 7)) "Non-numeric value")
+; * Is there a - (catch non-number, rhs) case test?
+(test/exn (run '(- 20 (fun (y) y))) "Non-numeric value")
+
+; * test cases
+; * Is there a * case test?
+(test (run '(* 5 20)) (numV 100))
+; * Is there a * (catch non-number, lhs) case test?
+(test/exn (run '(* (fun (x) x) 7)) "Non-numeric value")
+; * Is there a * (catch non-number, rhs) case test?
+(test/exn (run '(* 20 (fun (y) y))) "Non-numeric value")
+
+
+; / test cases
+;  Is there a / case test?
+; * Is there a / (catch non-number, lhs) case test?
+(test/exn (run '(/ (fun (x) x) 7)) "Non-numeric value")
+; * Is there a / (catch non-number, rhs) case test?
+(test/exn (run '(/ 20 (fun (y) y))) "Non-numeric value")
+; * Is there a / (catch div by 0) case test?
+; a divide by zero case test?
+(test/exn (interp (parse '(/ 6 0)) (mtEnv)) "Division by zero")
+(test/exn (interp (parse '(/ (+ 6 0) 0)) (mtEnv)) "Division by zero")
+(test/exn (interp (parse '(/ (/ 6 0) 1)) (mtEnv)) "Division by zero")
+ 
+ 
+
+
+ 
+ ;Feature: id
+ ;* Is there an id (unbound) case test?
+ (test/exn (run 'x) "Unbound Identifier")
+
+;Feature: if0
+; * Is there an if0 (true) case test?
+(test (run '(if0 0 20 40)) (numV 20))
+; * Is there an if0 (false) case test?
+(test (run '(if0 (+ 0 1) 29 30)) (numV 30))
+; * Is there an if0 (catch non-number) case test?
+(test/exn (run '(if0 (fun (x) x) 29 30)) "Non-numeric value")
+
+; Feature: with
+
+; * Is there a with (basic, bound id) case test?
+(test (run '(with ((x 26)) x)) (numV 26))
+; an id (unbound) case test
+(test/exn (run '(with ([y 11]) x)) "Unbound Identifier")
+; a with (basic, bound id) case test
+(test (run '(with ([x 3]) (* x x))) (numV 9))
+; * Is there a with (shadowing) case test?
+(test (run '(with ([x 3]) (with ((x 4)) (+ x 20) ))) (numV 24))
+; * Is there a with (shadowing in body but not in initialization expression) case test?
+(test (run '(with ([y 7] [x 4]) (with ([x (+ x 1)]) (+ y x)))) (numV 12))
+
  ;Feature: fun
  ; * Is there a fun (evaluates to closure) case test?
 (test (run '(fun (x) x)) (closureV '(x) (id 'x) (mtEnv)))
  ;  * Is there a fun (evaluates to closure with captured binding) case test?
 (test (run '(with ([x 8]) (fun (y) (+ x y)))) (closureV '(y) (binop + (id 'x) (id 'y)) (anEnv 'x (numV 8) (mtEnv))))
 (test (run '(with ((f (with ([x 5]) (fun (y) (+ x y))))) f)) (closureV '(y) (binop + (id 'x) (id 'y)) (anEnv 'x (numV 5) (mtEnv))))
- 
+ ;(+ 1 (fun (x) (+ x x)))
  ;Feature: app
  ; * Is there a working app test case?
 (test (run '((fun (x y) (+ x y)) 3 4)) (numV 7))
@@ -520,6 +579,5 @@
  ;* Is there an app (catches too many args) case test?
 (test/exn (run '((fun (x y) (+ x y)) 2 3 4)) "Argument Mismatch")
  ;* Is there an app (static, not dynamic scope) case test?
-
 (test (run '(with ((f (with ([x 5]) (fun (y) (+ x y))))) (with ((x 10)) (f 6)))) (numV 11))
 (test (run '(with ((f (with ([x 20]) (fun (y) (+ x y))))) (with ((x 10)) (f 6)))) (numV 26))
