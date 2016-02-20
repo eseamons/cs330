@@ -319,8 +319,7 @@
 (test (parse '(if0 0 (+ 1 2) (+ 3 4))) (if0 (num 0) (binop + (num 1) (num 2)) (binop + (num 3) (num 4))))
 (test (parse '(if0 x x x)) (if0 (id 'x) (id 'x) (id 'x)))
 (test/exn (parse '(if0 (+ 1 2) (+ 3 4))) "Illegal syntax")
-(test/exn (parse 'if0) "Illegal syntax")
-(test/exn (parse 'fun) "Illegal syntax")
+
 (test (parse '(fun (a b) (* a b))) (fun '(a b) (binop * (id 'a) (id 'b))))
 (test (parse '(fun (x) (+ x x))) (fun '(x) (binop + (id 'x) (id 'x))))
 (test (parse '(fun (x) x)) (fun '(x) (id 'x)))
@@ -439,6 +438,34 @@
 ;Is there a test case for: too few pieces
 (test/exn (parse '(* 27)) "Illegal syntax")
 
+ ; Feature: if0
+ ; * Is there an example of parsing a if0 expression properly?
+(test (parse '(if0 0 7 8)) (if0 (num 0) (num 7) (num 8)))
+ ; * Is there a test case for: too few pieces?
+(test/exn (parse '(if0 0 1)) "Illegal syntax")
+ ; * Is there a test case for: too many pieces?
+(test/exn (parse '(if0 0 1 (+ 1 2) (+ 3 4))) "Illegal syntax")
+
+
+; Feature: id
+; an example of parsing a id expression properly
+(test (parse 'x) (id 'x))
+(test (parse '(+ x x)) (binop + (id 'x) (id 'x)))
+; a test case for: not an id (+)
+(test/exn (parse '+) "Illegal syntax")
+; a test case for: not an id (-)
+(test/exn (parse '-) "Illegal syntax")
+; a test case for: not an id (*)
+(test/exn (parse '*) "Illegal syntax")
+; a test case for: not an id (/)
+(test/exn (parse '/) "Illegal syntax")
+; a test case for: not an id (with)
+(test/exn (parse 'with) "Illegal syntax")
+; * Is there a test case for: not an id (if0)?
+(test/exn (parse 'if0) "Illegal syntax")
+; * Is there a test case for: not an id (fun)?
+(test/exn (parse 'fun) "Illegal syntax")
+
 ; Feature: with
 ; an example of parsing a with expression properly
 (test (parse '(with ([x 5]) (+ 1 2))) (with (list (binding 'x (num 5))) (binop + (num 1) (num 2))))
@@ -456,24 +483,29 @@
 (test/exn (parse '(with ([x 4 3]) (* x x))) "Illegal syntax")
 ; Is there a test case for: invalid binding (first item not a symbol)?
 (test/exn (parse '(with ([3 12]) (+ 1 x))) "Illegal syntax")
+; Is there a test case for: invalid binding (not a valid id)?
+(test/exn (parse '(with (['if0 12]) (+ 1 'if0))) "Illegal syntax")
 ; Is there a test case for: invalid binding (duplicated id)
 (test/exn (parse '(fun (x x) (+ x x))) "Duplicate identifiers")
 (test/exn (parse '(with ([x 5] [x 7]) (+ 1 2))) "Duplicate identifiers")
 
-; Feature: id
-; an example of parsing a id expression properly
-(test (parse 'x) (id 'x))
-(test (parse '(+ x x)) (binop + (id 'x) (id 'x)))
-; a test case for: not an id (+)
-(test/exn (parse '+) "Illegal syntax")
-; a test case for: not an id (-)
-(test/exn (parse '-) "Illegal syntax")
-; a test case for: not an id (*)
-(test/exn (parse '*) "Illegal syntax")
-; a test case for: not an id (/)
-(test/exn (parse '/) "Illegal syntax")
-; a test case for: not an id (with)
-(test/exn (parse 'with) "Illegal syntax")
+
+; Feature: fun
+; * Is there an example of parsing a fun expression properly?
+(test (parse '(fun (a b) (- a b))) (fun '(a b) (binop - (id 'a) (id 'b))))
+; * Is there a test case for: too few pieces?
+(test/exn (parse '(fun (+ a b))) "Illegal syntax")
+; * Is there a test case for: too many pieces?
+(test/exn (parse '(fun (a b) (+ a b) (+ a b))) "Illegal syntax")
+; * Is there a test case for: invalid parameters (not a list)?
+(test/exn (parse '(fun a b (+ a b))) "Illegal syntax")
+; * Is there a test case for: invalid parameter (not a symbol)?
+(test/exn (parse '(fun (3) x)) "Illegal syntax")
+; * Is there a test case for: invalid parameter (not a valid id)?
+(test/exn (parse '(fun ('+) '+)) "Illegal syntax")
+; * Is there a test case for: invalid parameter (duplicated id)?
+(test/exn (parse '(fun (x x) x)) "Duplicate identifier")
+
 
 ; Other:
 ; a test case for an expression with no operator (an empty list) 
@@ -522,12 +554,12 @@
 
 ; / test cases
 ;  Is there a / case test?
+(test (run '(/ 100 10)) (numV 10))
 ; * Is there a / (catch non-number, lhs) case test?
 (test/exn (run '(/ (fun (x) x) 7)) "Non-numeric value")
 ; * Is there a / (catch non-number, rhs) case test?
 (test/exn (run '(/ 20 (fun (y) y))) "Non-numeric value")
 ; * Is there a / (catch div by 0) case test?
-; a divide by zero case test?
 (test/exn (interp (parse '(/ 6 0)) (mtEnv)) "Division by zero")
 (test/exn (interp (parse '(/ (+ 6 0) 0)) (mtEnv)) "Division by zero")
 (test/exn (interp (parse '(/ (/ 6 0) 1)) (mtEnv)) "Division by zero")
@@ -568,6 +600,8 @@
 (test (run '(with ([x 8]) (fun (y) (+ x y)))) (closureV '(y) (binop + (id 'x) (id 'y)) (anEnv 'x (numV 8) (mtEnv))))
 (test (run '(with ((f (with ([x 5]) (fun (y) (+ x y))))) f)) (closureV '(y) (binop + (id 'x) (id 'y)) (anEnv 'x (numV 5) (mtEnv))))
  ;(+ 1 (fun (x) (+ x x)))
+
+
  ;Feature: app
  ; * Is there a working app test case?
 (test (run '((fun (x y) (+ x y)) 3 4)) (numV 7))
