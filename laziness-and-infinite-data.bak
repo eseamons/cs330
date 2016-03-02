@@ -1,0 +1,10 @@
+#lang lazy
+
+(define print-only-errors #t)
+(define (test l r)
+  (if (equal? l r)
+      (if print-only-errors
+          ()
+          (printf "Test Passed~n"))
+      (printf "Test Failed.~nActual:   ~S ~nExpected: ~S~n" l r)))
+
