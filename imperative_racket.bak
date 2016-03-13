@@ -1,0 +1,6 @@
+#lang racket
+
+(define my-vector #("Eric" "Ale" "Ryan" "Katrina"))
+
+(for ([i (in-range 0  (vector-length my-vector))])
+    (printf "Value at ref ~s: ~s~n" i (vector-ref my-vector i)))

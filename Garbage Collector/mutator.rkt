@@ -1,6 +1,7 @@
 #lang plai/mutator
 
-(allocator-setup "collector.rkt" 500)
+(allocator-setup "markAndSweep.rkt" 135)
+
 
 (define (fact x)
   (if (zero? x)
