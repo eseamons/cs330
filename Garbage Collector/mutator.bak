@@ -1,6 +1,6 @@
 #lang plai/mutator
 
-(allocator-setup "stopAndCopy.rkt" 200)
+(allocator-setup "stop-test.rkt" 135)
 
 (define (fact x)
   (if (zero? x)
