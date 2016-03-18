@@ -111,7 +111,7 @@
 ; type-of : Expr -> Type
 ; determines the type of an already parsed expression
 (define (type-of e)
-  (type-of-recursive e mtEnv))
+  (type-of-recursive e (mtEnv)))
 
 (define (type-of-recursive e Env)
   (type-case Expr e
