@@ -126,7 +126,7 @@
                       (t-bool)
                       (error 'type-of "parameter of iszero must be a number"))]
     [bool (b) (t-bool)]
-    [id (x) (error "unbound identifier")]
+    [id (x) (lookup-env x Env)]
     [bif (test then else)
          (if
            (and
@@ -213,6 +213,7 @@
 ; Expression: id
 ; * Is there an example of type-of on a correct id expression?
 ; * Is there a test case for a unbound identifier?
+(test/exn (type-of (parse 'x)) "Unbound Identifier") 
 
 ; Expression: with
 ; * Is there an example of type-of on a correct with expression?
