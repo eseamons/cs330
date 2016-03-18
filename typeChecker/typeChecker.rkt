@@ -28,7 +28,16 @@
 
 (define-type Env
   [mtEnv]
-  [anEnv (name symbol?) (value Type?) (env Env?)])
+  [anEnv (name symbol?) (type Type?) (env Env?)])
+
+
+(define (lookup-env name env)
+  (type-case Env env
+    [mtEnv () (error 'lookup "Unbound Identifier")]
+    [anEnv (bound-name bound-type rest-env)
+           (if (symbol=? bound-name name)
+               bound-type
+               (lookup-env name rest-env))]))
 
 ; table of binary number operations
 (define op-table
