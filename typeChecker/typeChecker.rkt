@@ -111,47 +111,48 @@
 ; type-of : Expr -> Type
 ; determines the type of an already parsed expression
 (define (type-of e)
+  (type-of-recursive e mtEnv))
+
+(define (type-of-recursive e Env)
   (type-case Expr e
     [num (n) (t-num)]
     [bin-num-op (op lhs rhs)
                 (if (and
-                     (t-num? (type-of lhs))
-                     (t-num? (type-of rhs)))
+                     (t-num? (type-of-recursive lhs Env))
+                     (t-num? (type-of-recursive rhs Env)))
                     (t-num)
                     (error 'type-of "lhs and rhs must be number types"))]
-    [iszero (num) (if (t-num? (type-of num))
-                      (t-fun (t-num) (t-bool))
+    [iszero (num) (if (t-num? (type-of-recursive num Env))
+                      (t-bool)
                       (error 'type-of "parameter of iszero must be a number"))]
     [bool (b) (t-bool)]
     [id (x) (error "unbound identifier")]
     [bif (test then else)
          (if
            (and
-              (t-bool? (type-of test))
+              (t-bool? (type-of-recursive test Env))
               (same-type
-               (type-of then)
-               (type-of else)))
-           (type-of then)
+               (type-of-recursive then Env)
+               (type-of-recursive else Env)))
+           (type-of-recursive then Env)
            (error 'type-of "error in bif"))]
     [nempty () (t-nlist)]
     [ncons (first rest)
            (if (and
-                 (t-num? (type-of first))
-                 (t-nlist? (type-of rest)))
+                 (t-num? (type-of-recursive first Env))
+                 (t-nlist? (type-of-recursive rest Env)))
                 (t-nlist)
                  (error 'type-of "first parameter of ncons must be a number and second parameter must be a list"))]
-    [isnempty (list) (if (t-nlist? (type-of list))
-                         (t-fun (t-nlist) (t-bool))
+    [isnempty (list) (if (t-nlist? (type-of-recursive list Env))
+                         (t-bool)
                          (error 'type-of "first parameter of nempty? must be a list"))]
-    [nfirst (list) (if (t-nlist? (type-of list))
-                       (t-fun (t-nlist) (t-num))
+    [nfirst (list) (if (t-nlist? (type-of-recursive list Env))
+                       (t-num)
                        (error 'type-of "parameter of nfirst must be a list"))]
-    [nrest (rest) (if (t-nlist? (type-of rest))
-                       (t-fun (t-nlist) (t-nlist))
+    [nrest (rest) (if (t-nlist? (type-of-recursive rest Env))
+                       (t-nlist)
                        (error 'type-of "parameter of nrest must be a list"))]
     [else (error 'type-of "not implemented")]))
-
-
 
 
 ; type-of test cases
@@ -196,7 +197,7 @@
 
 ; Expression: iszero
 ; * Is there an example of type-of on a correct iszero expression?
-(test (type-of (parse '(iszero 6))) (t-fun (t-num) (t-bool)))
+(test (type-of (parse '(iszero 6))) (t-bool))
 ; * Is there a test case for the input not being a number?
 (test/exn (type-of (parse '(iszero true))) "parameter of iszero must be a number")
 
@@ -240,94 +241,22 @@
 
 ; Expression: nempty?
 ; * Is there an example of type-of on a correct nempty? expression?
-(test (type-of (parse '(nempty? nempty))) (t-fun (t-nlist) (t-bool)))
+(test (type-of (parse '(nempty? nempty))) (t-bool))
 ; * Is there a test case for the input not being an nlist
 (test/exn (type-of (parse '(nempty? 6))) "first parameter of nempty? must be a list")
 
 ; Expression: nfirst
 ; * Is there an example of type-of on a correct nfirst expression?
-(test (type-of (parse '(nfirst nempty))) (t-fun (t-nlist) (t-num)))
-(test (type-of (parse '(nfirst (ncons 6 nempty)))) (t-fun (t-nlist) (t-num)))
+(test (type-of (parse '(nfirst nempty))) (t-num))
+(test (type-of (parse '(nfirst (ncons 6 nempty)))) (t-num))
 ; * Is there a test case for the input not being an nlist?
 (test/exn (type-of (parse '(nfirst 6))) "parameter of nfirst must be a list")
 
 ; Expression: nrest
 ; * Is there an example of type-of on a correct nrest expression?
-(test (type-of (parse '(nrest (ncons 6 (ncons 7 nempty))))) (t-fun (t-nlist) (t-nlist)))
+(test (type-of (parse '(nrest (ncons 6 (ncons 7 nempty))))) (t-nlist))
 ; * Is there a test case for the input not being an nlist?
 (test/exn (type-of (parse '(nrest 13))) "parameter of nrest must be a list")
 
 
 ;------------------------------------------------------------------------------------
-; Parsing test cases
-#|
-
-; parse tests
-
-; parse num
-(test (parse 6) (num 6))
-; parse id
-(test (parse 'x) (id 'x))
-(test (parse 'y) (id 'y))
-; parse expression
-(test (parse '(+ 1 2)) (bin-num-op + (num 1) (num 2)))
-(test (parse '(* 3 4)) (bin-num-op * (num 3) (num 4)))
-(test (parse '(- 17 5)) (bin-num-op - (num 17) (num 5)))
-; parse boolean
-(test (parse 'true) (bool #t))
-(test (parse 'false) (bool #f))
-; parse bif
-(test (parse '(bif true 1 2)) (bif (bool #t) (num 1) (num 2)))
-; parse iszero
-(test (parse '(iszero 0)) (iszero (num 0)))
-; parse ncons
-(test (parse '(ncons 6 6)) (ncons (num 6) (num 6)))
-(test (parse '(ncons (nfirst 6) (nrest nempty)))
-      (ncons (nfirst (num 6)) (nrest (nempty))))
-(test (parse '(ncons (nfirst 6)
-                     (nrest
-                      (ncons (nfirst 3)
-                            (nrest nempty)))))
-      (ncons
-       (nfirst (num 6))
-       (nrest
-        (ncons
-         (nfirst (num 3))
-         (nrest (nempty))))))
-
-; parse nempty
-(test (parse 'nempty) (nempty))
-; parse nfirst
-(test (parse '(nfirst 6)) (nfirst (num 6)))
-(test (parse '(nfirst nempty)) (nfirst (nempty)))
-(test (parse '(nrest nempty)) (nrest (nempty)))
-; parse nempty?
-(test (parse '(nempty? nempty)) (isnempty (nempty)))
-; parse with
-(test (parse '(with (x 6) (+ x x)))
-      (with 'x (num 6) (bin-num-op + (id 'x) (id 'x))))
-; parse app
-(test (parse '(6 7)) (app (num 6) (num 7)))
-; parse fun
-(test (parse '(fun (x : number) : number (+ x x))) (fun
-                                                    'x
-                                                    (t-num)
-                                                    (t-num)
-                                                    (bin-num-op + (id 'x) (id 'x))))
-
-
-
-; type-of tests
-(test (type-of (parse '(+ 1 (* 3 (- 5 7))))) (t-num))
-
-(test/exn (type-of (parse '(3 4))) "not implemented")
-(test/exn (type-of (parse 'x)) "type error")
-
-
-(parse-type '(number -> boolean))
-(parse-type '(nlist -> boolean))
-(parse-type '(nlist -> number))
-(parse-type '((number -> boolean) -> boolean))
-
-|#
-
