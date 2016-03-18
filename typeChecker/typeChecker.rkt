@@ -103,7 +103,9 @@
     [nfirst (list) (if (t-nlist? (type-of list))
                        (t-fun (t-nlist) (t-num))
                        (error 'type-of "parameter of nfirst must be a list"))]
-    [nrest (rest) (t-nlist)]
+    [nrest (rest) (if (t-nlist? (type-of rest))
+                       (t-fun (t-nlist) (t-nlist))
+                       (error 'type-of "parameter of nrest must be a list"))]
     [else (error 'type-of "not implemented")]))
 
 #|
@@ -267,9 +269,12 @@
 (test (type-of (parse '(nfirst (ncons 6 nempty)))) (t-fun (t-nlist) (t-num)))
 ; * Is there a test case for the input not being an nlist?
 (test/exn (type-of (parse '(nfirst 6))) "parameter of nfirst must be a list")
+
 ; Expression: nrest
 ; * Is there an example of type-of on a correct nrest expression?
+(test (type-of (parse '(nrest (ncons 6 (ncons 7 nempty))))) (t-fun (t-nlist) (t-nlist)))
 ; * Is there a test case for the input not being an nlist?
+(test/exn (type-of (parse '(nrest 13))) "parameter of nrest must be a list")
 
 
 
