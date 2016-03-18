@@ -113,6 +113,11 @@
                        (error 'type-of "parameter of nrest must be a list"))]
     [else (error 'type-of "not implemented")]))
 
+
+
+
+; type-of test cases
+
 ; Expression: num
 ; * Is there an example of type-of on a correct num expression?
 (test (type-of (parse 1)) (t-num))
