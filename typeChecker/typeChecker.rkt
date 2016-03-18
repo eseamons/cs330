@@ -30,6 +30,9 @@
   [mtEnv]
   [anEnv (name symbol?) (type Type?) (env Env?)])
 
+(define (extend-env id type Env)
+  (anEnv id type Env))
+
 
 (define (lookup-env name env)
   (type-case Env env
