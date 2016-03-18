@@ -113,80 +113,6 @@
                        (error 'type-of "parameter of nrest must be a list"))]
     [else (error 'type-of "not implemented")]))
 
-#|
-
-; parse tests
-
-; parse num
-(test (parse 6) (num 6))
-; parse id
-(test (parse 'x) (id 'x))
-(test (parse 'y) (id 'y))
-; parse expression
-(test (parse '(+ 1 2)) (bin-num-op + (num 1) (num 2)))
-(test (parse '(* 3 4)) (bin-num-op * (num 3) (num 4)))
-(test (parse '(- 17 5)) (bin-num-op - (num 17) (num 5)))
-; parse boolean
-(test (parse 'true) (bool #t))
-(test (parse 'false) (bool #f))
-; parse bif
-(test (parse '(bif true 1 2)) (bif (bool #t) (num 1) (num 2)))
-; parse iszero
-(test (parse '(iszero 0)) (iszero (num 0)))
-; parse ncons
-(test (parse '(ncons 6 6)) (ncons (num 6) (num 6)))
-(test (parse '(ncons (nfirst 6) (nrest nempty)))
-      (ncons (nfirst (num 6)) (nrest (nempty))))
-(test (parse '(ncons (nfirst 6)
-                     (nrest
-                      (ncons (nfirst 3)
-                            (nrest nempty)))))
-      (ncons
-       (nfirst (num 6))
-       (nrest
-        (ncons
-         (nfirst (num 3))
-         (nrest (nempty))))))
-
-; parse nempty
-(test (parse 'nempty) (nempty))
-; parse nfirst
-(test (parse '(nfirst 6)) (nfirst (num 6)))
-(test (parse '(nfirst nempty)) (nfirst (nempty)))
-(test (parse '(nrest nempty)) (nrest (nempty)))
-; parse nempty?
-(test (parse '(nempty? nempty)) (isnempty (nempty)))
-; parse with
-(test (parse '(with (x 6) (+ x x)))
-      (with 'x (num 6) (bin-num-op + (id 'x) (id 'x))))
-; parse app
-(test (parse '(6 7)) (app (num 6) (num 7)))
-; parse fun
-(test (parse '(fun (x : number) : number (+ x x))) (fun
-                                                    'x
-                                                    (t-num)
-                                                    (t-num)
-                                                    (bin-num-op + (id 'x) (id 'x))))
-
-
-
-; type-of tests
-(test (type-of (parse '(+ 1 (* 3 (- 5 7))))) (t-num))
-
-(test/exn (type-of (parse '(3 4))) "not implemented")
-(test/exn (type-of (parse 'x)) "type error")
-
-
-(parse-type '(number -> boolean))
-(parse-type '(nlist -> boolean))
-(parse-type '(nlist -> number))
-(parse-type '((number -> boolean) -> boolean))
-
-|#
-
-
-
-
 ; Expression: num
 ; * Is there an example of type-of on a correct num expression?
 (test (type-of (parse 1)) (t-num))
@@ -286,5 +212,76 @@
 (test/exn (type-of (parse '(nrest 13))) "parameter of nrest must be a list")
 
 
+;------------------------------------------------------------------------------------
+; Parsing test cases
+#|
 
+; parse tests
+
+; parse num
+(test (parse 6) (num 6))
+; parse id
+(test (parse 'x) (id 'x))
+(test (parse 'y) (id 'y))
+; parse expression
+(test (parse '(+ 1 2)) (bin-num-op + (num 1) (num 2)))
+(test (parse '(* 3 4)) (bin-num-op * (num 3) (num 4)))
+(test (parse '(- 17 5)) (bin-num-op - (num 17) (num 5)))
+; parse boolean
+(test (parse 'true) (bool #t))
+(test (parse 'false) (bool #f))
+; parse bif
+(test (parse '(bif true 1 2)) (bif (bool #t) (num 1) (num 2)))
+; parse iszero
+(test (parse '(iszero 0)) (iszero (num 0)))
+; parse ncons
+(test (parse '(ncons 6 6)) (ncons (num 6) (num 6)))
+(test (parse '(ncons (nfirst 6) (nrest nempty)))
+      (ncons (nfirst (num 6)) (nrest (nempty))))
+(test (parse '(ncons (nfirst 6)
+                     (nrest
+                      (ncons (nfirst 3)
+                            (nrest nempty)))))
+      (ncons
+       (nfirst (num 6))
+       (nrest
+        (ncons
+         (nfirst (num 3))
+         (nrest (nempty))))))
+
+; parse nempty
+(test (parse 'nempty) (nempty))
+; parse nfirst
+(test (parse '(nfirst 6)) (nfirst (num 6)))
+(test (parse '(nfirst nempty)) (nfirst (nempty)))
+(test (parse '(nrest nempty)) (nrest (nempty)))
+; parse nempty?
+(test (parse '(nempty? nempty)) (isnempty (nempty)))
+; parse with
+(test (parse '(with (x 6) (+ x x)))
+      (with 'x (num 6) (bin-num-op + (id 'x) (id 'x))))
+; parse app
+(test (parse '(6 7)) (app (num 6) (num 7)))
+; parse fun
+(test (parse '(fun (x : number) : number (+ x x))) (fun
+                                                    'x
+                                                    (t-num)
+                                                    (t-num)
+                                                    (bin-num-op + (id 'x) (id 'x))))
+
+
+
+; type-of tests
+(test (type-of (parse '(+ 1 (* 3 (- 5 7))))) (t-num))
+
+(test/exn (type-of (parse '(3 4))) "not implemented")
+(test/exn (type-of (parse 'x)) "type error")
+
+
+(parse-type '(number -> boolean))
+(parse-type '(nlist -> boolean))
+(parse-type '(nlist -> number))
+(parse-type '((number -> boolean) -> boolean))
+
+|#
 
