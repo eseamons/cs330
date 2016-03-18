@@ -90,6 +90,9 @@
                      (t-num? (type-of rhs)))
                     (t-num)
                     (error 'type-of "lhs and rhs must be number types"))]
+    [iszero (num) (if (t-num? (type-of num))
+                      (t-fun (t-num) (t-bool))
+                      (error 'type-of "parameter of iszero must be a number"))]
     [bool (b) (t-bool)]
     [id (x) (error "unbound identifier")]
     [nempty () (t-nlist)]
@@ -224,7 +227,9 @@
 
 ; Expression: iszero
 ; * Is there an example of type-of on a correct iszero expression?
+(test (type-of (parse '(iszero 6))) (t-fun (t-num) (t-bool)))
 ; * Is there a test case for the input not being a number?
+(test/exn (type-of (parse '(iszero true))) "parameter of iszero must be a number")
 
 ; Expression: bif
 ;  * Is there an example of type-of on a correct bif expression?
