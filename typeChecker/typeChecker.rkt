@@ -217,13 +217,15 @@
 
 ; Expression: id
 ; * Is there an example of type-of on a correct id expression?
+(test (type-of (parse '(with  (x 5) x))) (t-num))
 ; * Is there a test case for a unbound identifier?
 (test/exn (type-of (parse 'x)) "Unbound Identifier") 
 
 ; Expression: with
 ; * Is there an example of type-of on a correct with expression?
+(test (type-of (parse '(with (x 5) (+ x 6)))) (t-num)) 
 ; * Is there a test case for misuse of the identifier in the body?
-
+(test/exn (type-of (parse '(with (x true) (+ x 4)))) "lhs and rhs must be number types")
 ; Expression: fun
 ; * Is there an example of type-of on a correct fun expression?
 ; * Is there a test case for misuse of the formal parameter in the body?
