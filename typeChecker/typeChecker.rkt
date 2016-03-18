@@ -78,6 +78,22 @@
       [(number) (t-num)]
       [(nlist) (t-nlist)]
       [else (t-fun (parse-type (first sexp)) (parse-type (third sexp)))]))
+
+
+
+; same-type : any, any -> boolean
+; returns true if the two expressions are the same Type, as in
+        ;the Type that we defined
+(define (same-type e1 e2)
+    (if
+      (or
+         (and (t-num? e1) (t-num? e2))
+         (and (t-bool? e1) (t-bool? e2))
+         (and (t-nlist? e1) (t-nlist? e2))
+         (and (t-fun? e1) (t-fun? e2)
+              (same-type (t-fun-arg e1) (t-fun-arg e2))
+              (same-type (t-fun-result e1) (t-fun-result e2))))
+   #t #f))
  
 ; type-of : Expr -> Type
 ; determines the type of an already parsed expression
@@ -95,6 +111,15 @@
                       (error 'type-of "parameter of iszero must be a number"))]
     [bool (b) (t-bool)]
     [id (x) (error "unbound identifier")]
+    [bif (test then else)
+         (if
+           (and
+              (t-bool? (type-of test))
+              (same-type
+               (type-of then)
+               (type-of else)))
+           (type-of then)
+           (error 'type-of "error in bif"))]
     [nempty () (t-nlist)]
     [ncons (first rest)
            (if (and
@@ -164,8 +189,11 @@
 
 ; Expression: bif
 ;  * Is there an example of type-of on a correct bif expression?
+(test (type-of (parse '(bif true 6 7))) (t-num))
 ;  * Is there a test case for a non-boolean condition error?
+(test/exn (type-of (parse '(bif nempty 9 10))) "error in bif")
 ;  * Is there a test case for a mismatch error?
+(test/exn (type-of (parse '(bif false 8 nempty))) "error in bif")
 
 
 ; Expression: id
