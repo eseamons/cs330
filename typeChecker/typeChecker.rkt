@@ -26,6 +26,10 @@
   [t-nlist]
   [t-fun (arg Type?) (result Type?)])
 
+(define-type Env
+  [mtEnv]
+  [anEnv (name symbol?) (value Type?) (env Env?)])
+
 ; table of binary number operations
 (define op-table
   (list
