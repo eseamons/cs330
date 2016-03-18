@@ -98,7 +98,7 @@
                  (t-num? (type-of first))
                  (t-nlist? (type-of rest)))
                 (t-nlist)
-                 (error 'type-of "error"))]
+                 (error 'type-of "first parameter of ncons must be a number and second parameter must be a list"))]
     [isnempty (list) (t-fun (t-nlist) (t-bool))]
     [nfirst (list) (t-fun)]
     [nrest (rest) (t-nlist)]
@@ -247,3 +247,26 @@
 ; Expression: nempty
 ; * Is there an example of type-of on a correct nempty expression?
 (test (type-of (parse 'nempty)) (t-nlist))
+
+; Expression: ncons
+; * Is there an example of type-of on a correct ncons expression?
+(test (type-of (parse '(ncons 6 nempty))) (t-nlist))
+; * Is there a test case for the first parameter not being a number?
+(test/exn (type-of (parse '(ncons true nempty))) "first parameter of ncons must be a number and second parameter must be a list")
+; * Is there a test case for the second parameter not being an nlist?
+
+; Expression: nempty?
+; * Is there an example of type-of on a correct nempty? expression?
+; * Is there a test case for the input not being an nlist?
+
+; Expression: nfirst
+; * Is there an example of type-of on a correct nfirst expression?
+; * Is there a test case for the input not being an nlist?
+
+; Expression: nrest
+; * Is there an example of type-of on a correct nrest expression?
+; * Is there a test case for the input not being an nlist?
+
+
+
+
