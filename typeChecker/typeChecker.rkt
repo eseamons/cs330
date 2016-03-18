@@ -130,6 +130,8 @@
                       (error 'type-of "parameter of iszero must be a number"))]
     [bool (b) (t-bool)]
     [id (x) (lookup-env x Env)]
+    [with (bound-id bound-body body)
+          (type-of-recursive body (extend-env bound-id (type-of-recursive bound-body Env) Env))]
     [bif (test then else)
          (if
            (and
