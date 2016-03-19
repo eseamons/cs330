@@ -157,6 +157,11 @@
     [nrest (rest) (if (t-nlist? (type-of-recursive rest Env))
                        (t-nlist)
                        (error 'type-of "parameter of nrest must be a list"))]
+    [fun (id arg result body)
+         (if 
+            (same-type (type-of-recursive body (extend-env id arg Env)) result)
+             (t-fun arg result)
+             (error 'type-of "return-type mismatch error"))]
     [else (error 'type-of "not implemented")]))
 
 
@@ -217,7 +222,7 @@
 
 ; Expression: id
 ; * Is there an example of type-of on a correct id expression?
-(test (type-of (parse '(with  (x 5) x))) (t-num))
+(test (type-of (parse '(with (x 5) x))) (t-num))
 ; * Is there a test case for a unbound identifier?
 (test/exn (type-of (parse 'x)) "Unbound Identifier") 
 
@@ -226,10 +231,17 @@
 (test (type-of (parse '(with (x 5) (+ x 6)))) (t-num)) 
 ; * Is there a test case for misuse of the identifier in the body?
 (test/exn (type-of (parse '(with (x true) (+ x 4)))) "lhs and rhs must be number types")
+
 ; Expression: fun
 ; * Is there an example of type-of on a correct fun expression?
+(test (type-of (parse '(fun (x : number) : number (+ 1 x))))
+      (t-fun (t-num) (t-num)))  
 ; * Is there a test case for misuse of the formal parameter in the body?
+(test/exn (type-of (parse '(fun (x : boolean) : number (+ 1 x))))
+          "lhs and rhs must be number types")
 ; * Is there a test case for a return-type mismatch error?
+(test/exn (type-of (parse '(fun (x : boolean) : number x)))
+          "return-type mismatch error")
 
 ; Expression: app
 ; * Is there an example of type-of on a correct app expression?
