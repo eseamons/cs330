@@ -30,10 +30,13 @@
   [mtEnv]
   [anEnv (name symbol?) (type Type?) (env Env?)])
 
+; extend-env : symbol, Type, Env -> Env
+; extends the environment
 (define (extend-env id type Env)
   (anEnv id type Env))
 
-
+; lookup-env : symbol, Expr -> Type
+; checks if an identifier is in the environment. If it is, it returns the type that is bound to it, otherwise it throws an error
 (define (lookup-env name env)
   (type-case Env env
     [mtEnv () (error 'lookup "Unbound Identifier")]
@@ -58,6 +61,7 @@
   (second (assoc op op-table))))
 
 ; parse : s-expression -> Expr
+; parses concrete syntax to abstract syntax
 (define (parse sexp)
   (cond
     [(list? sexp)
@@ -162,7 +166,12 @@
             (same-type (type-of-recursive body (extend-env id arg Env)) result)
              (t-fun arg result)
              (error 'type-of "return-type mismatch error"))]
-    [else (error 'type-of "not implemented")]))
+    [app (fun-expr arg-expr)
+         (cond
+           [(not (fun? fun-expr)) (error 'type-of "operator is not a function")]
+           [(not (same-type (fun-arg-type fun-expr) (type-of-recursive arg-expr Env))) (error 'type-of "wrong argument type")]
+           [(not (same-type (type-of-recursive (fun-body fun-expr) (extend-env (fun-arg-id fun-expr) (fun-arg-type fun-expr) Env)) (fun-result-type fun-expr))) (error 'type-of "body does not match result type")]
+           [(fun-result-type fun-expr)])]))
 
 
 ; type-of test cases
@@ -245,8 +254,12 @@
 
 ; Expression: app
 ; * Is there an example of type-of on a correct app expression?
+(test (type-of (parse '((fun (x : number) : number (+ 1 x)) 2))) (t-num)) 
 ; * Is there a test case for an operator that isn't a function?
+(test/exn (type-of (parse '(6 7))) "operator is not a function")
 ; * Is there a test case for a wrong argument type?
+(test/exn (type-of (parse '((fun (x : number) : number (+ 1 x)) true)))
+      "wrong argument type")  
 
 ; Expression: nempty
 ; * Is there an example of type-of on a correct nempty expression?
