@@ -26,6 +26,25 @@
   [t-nlist]
   [t-fun (arg Type?) (result Type?)])
 
+(define-type Env
+  [mtEnv]
+  [anEnv (name symbol?) (type Type?) (env Env?)])
+
+; extend-env : symbol, Type, Env -> Env
+; extends the environment
+(define (extend-env id type Env)
+  (anEnv id type Env))
+
+; lookup-env : symbol, Expr -> Type
+; checks if an identifier is in the environment. If it is, it returns the type that is bound to it, otherwise it throws an error
+(define (lookup-env name env)
+  (type-case Env env
+    [mtEnv () (error 'lookup "Unbound Identifier")]
+    [anEnv (bound-name bound-type rest-env)
+           (if (symbol=? bound-name name)
+               bound-type
+               (lookup-env name rest-env))]))
+
 ; table of binary number operations
 (define op-table
   (list
@@ -42,6 +61,7 @@
   (second (assoc op op-table))))
 
 ; parse : s-expression -> Expr
+; parses concrete syntax to abstract syntax
 (define (parse sexp)
   (cond
     [(list? sexp)
@@ -78,105 +98,83 @@
       [(number) (t-num)]
       [(nlist) (t-nlist)]
       [else (t-fun (parse-type (first sexp)) (parse-type (third sexp)))]))
+
+
+
+; same-type : any, any -> boolean
+; returns true if the two expressions are the same Type, as in
+        ;the Type that we defined
+(define (same-type e1 e2)
+    (if
+      (or
+         (and (t-num? e1) (t-num? e2))
+         (and (t-bool? e1) (t-bool? e2))
+         (and (t-nlist? e1) (t-nlist? e2))
+         (and (t-fun? e1) (t-fun? e2)
+              (same-type (t-fun-arg e1) (t-fun-arg e2))
+              (same-type (t-fun-result e1) (t-fun-result e2))))
+   #t #f))
  
 ; type-of : Expr -> Type
 ; determines the type of an already parsed expression
 (define (type-of e)
+  (type-of-recursive e (mtEnv)))
+
+(define (type-of-recursive e Env)
   (type-case Expr e
     [num (n) (t-num)]
     [bin-num-op (op lhs rhs)
                 (if (and
-                     (t-num? (type-of lhs))
-                     (t-num? (type-of rhs)))
+                     (t-num? (type-of-recursive lhs Env))
+                     (t-num? (type-of-recursive rhs Env)))
                     (t-num)
                     (error 'type-of "lhs and rhs must be number types"))]
+    [iszero (num) (if (t-num? (type-of-recursive num Env))
+                      (t-bool)
+                      (error 'type-of "parameter of iszero must be a number"))]
     [bool (b) (t-bool)]
-    [id (x) (error "type error")]
+    [id (x) (lookup-env x Env)]
+    [with (bound-id bound-body body)
+          (type-of-recursive body (extend-env bound-id (type-of-recursive bound-body Env) Env))]
+    [bif (test then else)
+         (if
+           (and
+              (t-bool? (type-of-recursive test Env))
+              (same-type
+               (type-of-recursive then Env)
+               (type-of-recursive else Env)))
+           (type-of-recursive then Env)
+           (error 'type-of "error in bif"))]
     [nempty () (t-nlist)]
     [ncons (first rest)
            (if (and
-                 (t-num? (type-of first))
-                 (t-nlist? (type-of rest)))
+                 (t-num? (type-of-recursive first Env))
+                 (t-nlist? (type-of-recursive rest Env)))
                 (t-nlist)
-                 (error 'type-of "error"))]
-    [isnempty (list) (t-fun (t-nlist) (t-bool))]
-    [nfirst (list) (t-fun)]
-    [nrest (rest) (t-nlist)]
-    [else (error 'type-of "not implemented")]))
+                 (error 'type-of "first parameter of ncons must be a number and second parameter must be a list"))]
+    [isnempty (list) (if (t-nlist? (type-of-recursive list Env))
+                         (t-bool)
+                         (error 'type-of "first parameter of nempty? must be a list"))]
+    [nfirst (list) (if (t-nlist? (type-of-recursive list Env))
+                       (t-num)
+                       (error 'type-of "parameter of nfirst must be a list"))]
+    [nrest (rest) (if (t-nlist? (type-of-recursive rest Env))
+                       (t-nlist)
+                       (error 'type-of "parameter of nrest must be a list"))]
+    [fun (id arg result body)
+         (if 
+            (same-type (type-of-recursive body (extend-env id arg Env)) result)
+             (t-fun arg result)
+             (error 'type-of "return-type mismatch error"))]
+    [app (fun-expr arg-expr)
+         (cond
+           [(not (fun? fun-expr)) (error 'type-of "operator is not a function")]
+           [(not (same-type (fun-arg-type fun-expr) (type-of-recursive arg-expr Env))) (error 'type-of "wrong argument type")]
+           [(not (same-type (type-of-recursive (fun-body fun-expr) (extend-env (fun-arg-id fun-expr) (fun-arg-type fun-expr) Env)) (fun-result-type fun-expr))) (error 'type-of "body does not match result type")]
+           [(fun-result-type fun-expr)])]))
 
 
-
-; parse tests
-
-; parse num
-(test (parse 6) (num 6))
-; parse id
-(test (parse 'x) (id 'x))
-(test (parse 'y) (id 'y))
-; parse expression
-(test (parse '(+ 1 2)) (bin-num-op + (num 1) (num 2)))
-(test (parse '(* 3 4)) (bin-num-op * (num 3) (num 4)))
-(test (parse '(- 17 5)) (bin-num-op - (num 17) (num 5)))
-; parse boolean
-(test (parse 'true) (bool #t))
-(test (parse 'false) (bool #f))
-; parse bif
-(test (parse '(bif true 1 2)) (bif (bool #t) (num 1) (num 2)))
-; parse iszero
-(test (parse '(iszero 0)) (iszero (num 0)))
-; parse ncons
-(test (parse '(ncons 6 6)) (ncons (num 6) (num 6)))
-(test (parse '(ncons (nfirst 6) (nrest nempty)))
-      (ncons (nfirst (num 6)) (nrest (nempty))))
-(test (parse '(ncons (nfirst 6)
-                     (nrest
-                      (ncons (nfirst 3)
-                            (nrest nempty)))))
-      (ncons
-       (nfirst (num 6))
-       (nrest
-        (ncons
-         (nfirst (num 3))
-         (nrest (nempty))))))
-
-; parse nempty
-(test (parse 'nempty) (nempty))
-; parse nfirst
-(test (parse '(nfirst 6)) (nfirst (num 6)))
-(test (parse '(nfirst nempty)) (nfirst (nempty)))
-(test (parse '(nrest nempty)) (nrest (nempty)))
-; parse nempty?
-(test (parse '(nempty? nempty)) (isnempty (nempty)))
-; parse with
-(test (parse '(with (x 6) (+ x x)))
-      (with 'x (num 6) (bin-num-op + (id 'x) (id 'x))))
-; parse app
-(test (parse '(6 7)) (app (num 6) (num 7)))
-; parse fun
-(test (parse '(fun (x : number) : number (+ x x))) (fun
-                                                    'x
-                                                    (t-num)
-                                                    (t-num)
-                                                    (bin-num-op + (id 'x) (id 'x))))
-
-
-
-; type-of tests
-(test (type-of (parse '(+ 1 (* 3 (- 5 7))))) (t-num))
-
-(test/exn (type-of (parse '(3 4))) "not implemented")
-(test/exn (type-of (parse 'x)) "type error")
-
-
-(parse-type '(number -> boolean))
-(parse-type '(nlist -> boolean))
-(parse-type '(nlist -> number))
-(parse-type '((number -> boolean) -> boolean))
-
-
-
-
-
+; type-of test cases
 
 ; Expression: num
 ; * Is there an example of type-of on a correct num expression?
@@ -216,11 +214,84 @@
 
 
 
-Expression: iszero
- * Is there an example of type-of on a correct iszero expression?
- * Is there a test case for the input not being a number?
+; Expression: iszero
+; * Is there an example of type-of on a correct iszero expression?
+(test (type-of (parse '(iszero 6))) (t-bool))
+; * Is there a test case for the input not being a number?
+(test/exn (type-of (parse '(iszero true))) "parameter of iszero must be a number")
 
-Expression: bif
- * Is there an example of type-of on a correct bif expression?
- * Is there a test case for a non-boolean condition error?
- * Is there a test case for a mismatch error?
+; Expression: bif
+;  * Is there an example of type-of on a correct bif expression?
+(test (type-of (parse '(bif true 6 7))) (t-num))
+;  * Is there a test case for a non-boolean condition error?
+(test/exn (type-of (parse '(bif nempty 9 10))) "error in bif")
+;  * Is there a test case for a mismatch error?
+(test/exn (type-of (parse '(bif false 8 nempty))) "error in bif")
+
+
+; Expression: id
+; * Is there an example of type-of on a correct id expression?
+(test (type-of (parse '(with (x 5) x))) (t-num))
+; * Is there a test case for a unbound identifier?
+(test/exn (type-of (parse 'x)) "Unbound Identifier") 
+
+; Expression: with
+; * Is there an example of type-of on a correct with expression?
+(test (type-of (parse '(with (x 5) (+ x 6)))) (t-num)) 
+; * Is there a test case for misuse of the identifier in the body?
+(test/exn (type-of (parse '(with (x true) (+ x 4)))) "lhs and rhs must be number types")
+
+; Expression: fun
+; * Is there an example of type-of on a correct fun expression?
+(test (type-of (parse '(fun (x : number) : number (+ 1 x))))
+      (t-fun (t-num) (t-num)))  
+; * Is there a test case for misuse of the formal parameter in the body?
+(test/exn (type-of (parse '(fun (x : boolean) : number (+ 1 x))))
+          "lhs and rhs must be number types")
+; * Is there a test case for a return-type mismatch error?
+(test/exn (type-of (parse '(fun (x : boolean) : number x)))
+          "return-type mismatch error")
+
+; Expression: app
+; * Is there an example of type-of on a correct app expression?
+(test (type-of (parse '((fun (x : number) : number (+ 1 x)) 2))) (t-num)) 
+; * Is there a test case for an operator that isn't a function?
+(test/exn (type-of (parse '(6 7))) "operator is not a function")
+; * Is there a test case for a wrong argument type?
+(test/exn (type-of (parse '((fun (x : number) : number (+ 1 x)) true)))
+      "wrong argument type")
+; * Is there a test case for a function whose body doesn't match the return type?
+(test/exn (type-of (parse '((fun (x : boolean) : number x) true))) "body does not match result type")
+
+; Expression: nempty
+; * Is there an example of type-of on a correct nempty expression?
+(test (type-of (parse 'nempty)) (t-nlist))
+
+; Expression: ncons
+; * Is there an example of type-of on a correct ncons expression?
+(test (type-of (parse '(ncons 6 nempty))) (t-nlist))
+; * Is there a test case for the first parameter not being a number?
+(test/exn (type-of (parse '(ncons true nempty))) "first parameter of ncons must be a number and second parameter must be a list")
+; * Is there a test case for the second parameter not being an nlist?
+
+; Expression: nempty?
+; * Is there an example of type-of on a correct nempty? expression?
+(test (type-of (parse '(nempty? nempty))) (t-bool))
+; * Is there a test case for the input not being an nlist
+(test/exn (type-of (parse '(nempty? 6))) "first parameter of nempty? must be a list")
+
+; Expression: nfirst
+; * Is there an example of type-of on a correct nfirst expression?
+(test (type-of (parse '(nfirst nempty))) (t-num))
+(test (type-of (parse '(nfirst (ncons 6 nempty)))) (t-num))
+; * Is there a test case for the input not being an nlist?
+(test/exn (type-of (parse '(nfirst 6))) "parameter of nfirst must be a list")
+
+; Expression: nrest
+; * Is there an example of type-of on a correct nrest expression?
+(test (type-of (parse '(nrest (ncons 6 (ncons 7 nempty))))) (t-nlist))
+; * Is there a test case for the input not being an nlist?
+(test/exn (type-of (parse '(nrest 13))) "parameter of nrest must be a list")
+
+
+;------------------------------------------------------------------------------------

@@ -33,6 +33,24 @@
   [anEnv (name symbol?) (genName symbol?) (env Env?)])
 
 
+
+(define (extend-env id Env)
+  (anEnv id
+         (gensym id)
+         Env))
+
+
+(define (lookup-env name env)
+  (type-case Env env
+    [mtEnv () #f]
+    [anEnv (bound-name bound-genName rest-env)
+           (if (symbol=? bound-name name)
+               bound-genName
+               (lookup-env name rest-env))]))
+
+
+
+
 ; table of binary number operations
 (define op-table
   (list
@@ -85,7 +103,44 @@
     ))
 
 (define (alpha-vary e)
-  "not implemented")
+  (alpha-vary-rec e (mtEnv)))
+
+(define (alpha-vary-rec e Env)
+  (type-case Expr e
+    [num (n) e]
+    [bin-num-op (op lhs rhs)
+                (bin-num-op op (alpha-vary-rec e Env) (alpha-vary-rec e Env))]
+    [bool (b) (bool b)]
+    [id (x) (if (eq? #f (lookup-env x Env))
+                (error 'lookup "Unbound Identifier")
+                (lookup-env x Env))]
+    [iszero (expr) (iszero (alpha-vary-rec expr Env))]
+    [bif (c t f) (bif (alpha-vary-rec c Env) (alpha-vary-rec t Env) (alpha-vary-rec f Env))]
+    [with (bound-id bound-body body) (with
+                                      (alpha-vary-rec bound-id Env)
+                                      (alpha-vary-rec bound-body Env)
+                                      (alpha-vary-rec body Env))]
+    [rec-with (bound-id bound-body body) (rec-with
+                                          (alpha-vary-rec bound-id Env)
+                                          (alpha-vary-rec bound-body Env)
+                                          (alpha-vary-rec body Env))]
+    [fun (arg-id body) (fun
+                        (alpha-vary-rec arg-id Env)
+                        (alpha-vary-rec body Env))]
+    [app (fun-expr arg-expr) (app
+                              (alpha-vary-rec fun-expr Env)
+                              (alpha-vary-rec arg-expr Env))]
+    [tempty () tempty]
+    [tcons (first rest) (tcons
+                         (alpha-vary-rec first Env)
+                         (alpha-vary-rec rest Env))]
+    [tfirst (expr) (tfirst
+                    (alpha-vary-rec expr Env))]
+    [trest (expr) (trest
+                      (alpha-vary-rec expr Env))]
+    [istempty (expr) (istempty
+                      (alpha-vary-rec expr Env))]
+    ))
 
 (define (generate-constraints e-id e)
   "not implemented")
@@ -144,7 +199,7 @@
       (error 'type=?
              "~s and ~a are not equal (modulo renaming)"
              t1 t2)))
- 
+ #|
 (test/pred (t-var 'a)
            (type=? (t-var 'b)))
 (test/pred (t-fun (t-var 'a) (t-var 'b))
@@ -156,6 +211,7 @@
 (test/pred (t-fun (t-var 'a) (t-var 'b)) ; fails
            (type=? (t-fun (t-var 'c) (t-var 'c))))
 (test/exn ((type=? 34) 34) "not a Type")
+|#
  
 ; constraint-list=? : Constraint list -> Constraint list -> Bool
 ; signals an error if arguments are not variants of Constraint
