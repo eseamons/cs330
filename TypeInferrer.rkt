@@ -28,6 +28,10 @@
 (define-type Constraint
   [eqc (lhs Type?) (rhs Type?)])
 
+(define-type Env
+  [mtEnv]
+  [anEnv (name symbol?) (genName symbol?) (env Env?)])
+
 
 ; table of binary number operations
 (define op-table
@@ -79,3 +83,15 @@
     [(eq? 'tempty se) (tempty)]
     [(symbol? se) (id se)]
     ))
+
+(define (alpha-vary e)
+  "not implemented")
+
+(define (generate-constraints e-id e)
+  "not implemented")
+
+(define (unify loc)
+  "not implemented")
+
+(define (infer-type e)
+  "not implemented")
