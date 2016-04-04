@@ -261,7 +261,7 @@
 (test/exn (type-of (parse '((fun (x : number) : number (+ 1 x)) true)))
       "wrong argument type")
 ; * Is there a test case for a function whose body doesn't match the return type?
-(test/exn (type-of (parse '((fun (x : boolean : number x)) true))) "body does not match result type")
+(test/exn (type-of (parse '((fun (x : boolean) : number x) true))) "body does not match result type")
 
 ; Expression: nempty
 ; * Is there an example of type-of on a correct nempty expression?
