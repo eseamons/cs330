@@ -109,7 +109,7 @@
   (type-case Expr e
     [num (n) e]
     [bin-num-op (op lhs rhs)
-                (bin-num-op op (alpha-vary-rec e Env) (alpha-vary-rec e Env))]
+                (bin-num-op op (alpha-vary-rec lhs Env) (alpha-vary-rec rhs Env))]
     [bool (b) (bool b)]
     [id (x) (if (eq? #f (lookup-env x Env))
                 (error 'lookup "Unbound Identifier")
@@ -130,7 +130,7 @@
     [app (fun-expr arg-expr) (app
                               (alpha-vary-rec fun-expr Env)
                               (alpha-vary-rec arg-expr Env))]
-    [tempty () tempty]
+    [tempty () (tempty)]
     [tcons (first rest) (tcons
                          (alpha-vary-rec first Env)
                          (alpha-vary-rec rest Env))]
@@ -230,5 +230,50 @@
       (error 'constraint-list=?
              "~s and ~a are not equal (modulo renaming)"
              lc1 lc2)))
+
+;------------------------------------------------------------------------------
+; Function: alpha-vary
+; * Is the function correct?
+; * Is the function documented correctly (i.e. contract and purpose statement)?
+; * Is there an example of alpha-varying a number expression properly?
+(test (alpha-vary (parse '6)) (num 6))
+; * Is there an example of alpha-varying a true expression properly?
+(test (alpha-vary (parse 'true)) (bool #t))
+; * Is there an example of alpha-varying a false expression properly?
+(test (alpha-vary (parse 'true)) (bool #f))
+; * Is there an example of alpha-varying a + expression properly?
+(test (alpha-vary (parse '(+ 1 2))) (bin-num-op + (num 1) (num 2)))
+; * Is there an example of alpha-varying a - expression properly?
+(test (alpha-vary (parse '(- 17 12))) (bin-num-op - (num 17) (num 12)))
+; * Is there an example of alpha-varying a * expression properly?
+(test (alpha-vary (parse '(* 3 4))) (bin-num-op * (num 3) (num 4)))
+; * Is there an example of alpha-varying a iszero expression properly?
+; * Is there an example of alpha-varying a bif expression properly?
+(test (alpha-vary (parse '(bif true 1 2))) (bif (bool #t) (num 1) (num 2)))
+; * Is there an example of alpha-varying a id expression properly?
+; * Is there an example of alpha-varying a with expression properly?
+; * Is there an example of alpha-varying a rec expression properly?
+; * Is there an example of alpha-varying a fun expression properly?
+; * Is there an example of alpha-varying a app expression properly?
+; * Is there an example of alpha-varying a tempty expression properly?
+(test (alpha-vary (parse 'tempty)) (tempty))
+; * Is there an example of alpha-varying a tcons expression properly?
+(test (alpha-vary (parse '(tcons true tempty))) (tcons (bool #t) (tempty)))
+; * Is there an example of alpha-varying a tempty? expression properly?
+(test (alpha-vary (parse '(tempty? tempty))) (istempty (tempty)))
+; * Is there an example of alpha-varying a tfirst expression properly?
+(test (alpha-vary (parse '(tfirst (tcons true tempty)))) (tfirst (tcons (bool #t) (tempty))))
+; * Is there an example of alpha-varying a trest expression properly?
+(test (alpha-vary (parse '(trest (tcons true tempty)))) (trest (tcons (bool #t) (tempty))))
+
+
+
+(test/exn (alpha-vary (parse 'x))  "Unbound Identifier")
+
+
+
+
+
+
 
 
