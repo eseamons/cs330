@@ -125,19 +125,21 @@
                                               (alpha-vary-rec bound-body newEnv)
                                               (alpha-vary-rec body newEnv)
                                             ))
-                                          (with
-                                            (lookup-env bound-id Env)
-                                            (alpha-vary-rec bound-body Env)
-                                            (alpha-vary-rec body Env)
-                                          )
+                                          (local ([define newEnv (extend-env bound-id Env)])
+                                            (with
+                                              (lookup-env bound-id newEnv)
+                                              (alpha-vary-rec bound-body Env)
+                                              (alpha-vary-rec body newEnv)
+                                            ))
                                       )]
     [rec-with (bound-id bound-body body) (rec-with
                                           (alpha-vary-rec bound-id Env)
                                           (alpha-vary-rec bound-body Env)
                                           (alpha-vary-rec body Env))]
-    [fun (arg-id body) (fun
-                        (alpha-vary-rec arg-id Env)
-                        (alpha-vary-rec body Env))]
+    [fun (arg-id body) (local ([define newEnv (extend-env arg-id Env)])
+                         (fun
+                          (lookup-env arg-id newEnv)
+                          (alpha-vary-rec body newEnv)))]
     [app (fun-expr arg-expr) (app
                               (alpha-vary-rec fun-expr Env)
                               (alpha-vary-rec arg-expr Env))]
@@ -268,7 +270,10 @@
 (alpha-vary (parse '(with (x 5) (with (x (+ x 6)) x))))
 ; * Is there an example of alpha-varying a rec expression properly?
 ; * Is there an example of alpha-varying a fun expression properly?
+(alpha-vary (parse '(fun (x) x)))
+(alpha-vary (parse '(fun (x) (with (x x) x))))
 ; * Is there an example of alpha-varying a app expression properly?
+(alpha-vary (parse '((fun (x) x) 6)))
 ; * Is there an example of alpha-varying a tempty expression properly?
 (test (alpha-vary (parse 'tempty)) (tempty))
 ; * Is there an example of alpha-varying a tcons expression properly?
