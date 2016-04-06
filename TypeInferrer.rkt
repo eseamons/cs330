@@ -105,6 +105,8 @@
 (define (alpha-vary e)
   (alpha-vary-rec e (mtEnv)))
 
+
+
 (define (alpha-vary-rec e Env)
   (type-case Expr e
     [num (n) e]
@@ -113,13 +115,22 @@
     [bool (b) (bool b)]
     [id (x) (if (eq? #f (lookup-env x Env))
                 (error 'lookup "Unbound Identifier")
-                (lookup-env x Env))]
+                (id (lookup-env x Env)))]
     [iszero (expr) (iszero (alpha-vary-rec expr Env))]
     [bif (c t f) (bif (alpha-vary-rec c Env) (alpha-vary-rec t Env) (alpha-vary-rec f Env))]
-    [with (bound-id bound-body body) (with
-                                      (alpha-vary-rec bound-id Env)
-                                      (alpha-vary-rec bound-body Env)
-                                      (alpha-vary-rec body Env))]
+    [with (bound-id bound-body body) (if (eq? #f (lookup-env bound-id Env))
+                                          (local ([define newEnv (extend-env bound-id Env)])
+                                            (with
+                                              (lookup-env bound-id newEnv)
+                                              (alpha-vary-rec bound-body newEnv)
+                                              (alpha-vary-rec body newEnv)
+                                            ))
+                                          (with
+                                            (lookup-env bound-id Env)
+                                            (alpha-vary-rec bound-body Env)
+                                            (alpha-vary-rec body Env)
+                                          )
+                                      )]
     [rec-with (bound-id bound-body body) (rec-with
                                           (alpha-vary-rec bound-id Env)
                                           (alpha-vary-rec bound-body Env)
@@ -240,7 +251,7 @@
 ; * Is there an example of alpha-varying a true expression properly?
 (test (alpha-vary (parse 'true)) (bool #t))
 ; * Is there an example of alpha-varying a false expression properly?
-(test (alpha-vary (parse 'true)) (bool #f))
+(test (alpha-vary (parse 'false)) (bool #f))
 ; * Is there an example of alpha-varying a + expression properly?
 (test (alpha-vary (parse '(+ 1 2))) (bin-num-op + (num 1) (num 2)))
 ; * Is there an example of alpha-varying a - expression properly?
@@ -251,7 +262,10 @@
 ; * Is there an example of alpha-varying a bif expression properly?
 (test (alpha-vary (parse '(bif true 1 2))) (bif (bool #t) (num 1) (num 2)))
 ; * Is there an example of alpha-varying a id expression properly?
+(test/exn (alpha-vary (parse 'x))  "Unbound Identifier")
 ; * Is there an example of alpha-varying a with expression properly?
+(alpha-vary (parse '(+ (with (x 4) x) (with (x 5) x))))
+(alpha-vary (parse '(with (x 5) (with (x (+ x 6)) x))))
 ; * Is there an example of alpha-varying a rec expression properly?
 ; * Is there an example of alpha-varying a fun expression properly?
 ; * Is there an example of alpha-varying a app expression properly?
@@ -268,7 +282,7 @@
 
 
 
-(test/exn (alpha-vary (parse 'x))  "Unbound Identifier")
+
 
 
 
