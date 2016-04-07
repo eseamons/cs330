@@ -118,24 +118,25 @@
                 (id (lookup-env x Env)))]
     [iszero (expr) (iszero (alpha-vary-rec expr Env))]
     [bif (c t f) (bif (alpha-vary-rec c Env) (alpha-vary-rec t Env) (alpha-vary-rec f Env))]
-    [with (bound-id bound-body body) (if (eq? #f (lookup-env bound-id Env))
-                                          (local ([define newEnv (extend-env bound-id Env)])
-                                            (with
-                                              (lookup-env bound-id newEnv)
-                                              (alpha-vary-rec bound-body newEnv)
-                                              (alpha-vary-rec body newEnv)
-                                            ))
-                                          (local ([define newEnv (extend-env bound-id Env)])
+    [with (bound-id bound-body body) (local ([define newEnv (extend-env bound-id Env)])
                                             (with
                                               (lookup-env bound-id newEnv)
                                               (alpha-vary-rec bound-body Env)
                                               (alpha-vary-rec body newEnv)
+                                            ))]
+    [rec-with (bound-id bound-body body) (if (fun? bound-body)
+                                           (local ([define newEnv (extend-env bound-id Env)])
+                                              (rec-with
+                                                 (lookup-env bound-id newEnv)
+                                                 (alpha-vary-rec bound-body newEnv)
+                                                 (alpha-vary-rec body newEnv)
                                             ))
-                                      )]
-    [rec-with (bound-id bound-body body) (rec-with
-                                          (alpha-vary-rec bound-id Env)
-                                          (alpha-vary-rec bound-body Env)
-                                          (alpha-vary-rec body Env))]
+                                           (local ([define newEnv (extend-env bound-id Env)])
+                                              (rec-with
+                                                 (lookup-env bound-id newEnv)
+                                                 (alpha-vary-rec bound-body Env)
+                                                 (alpha-vary-rec body newEnv)
+                                            )))]
     [fun (arg-id body) (local ([define newEnv (extend-env arg-id Env)])
                          (fun
                           (lookup-env arg-id newEnv)
