@@ -77,7 +77,7 @@
                   (first (second se))
                   (parse (second (second se)))
                   (parse (third se)))]
-        [(eq? 'rec (first se)) (rec-with
+        [(eq? 'rec-with (first se)) (rec-with
                   (first (second se))
                   (parse (second (second se)))
                   (parse (third se)))]
@@ -360,6 +360,7 @@
 ; * Is there an example of alpha-varying a * expression properly?
 (test (alpha-vary (parse '(* 3 4))) (bin-num-op * (num 3) (num 4)))
 ; * Is there an example of alpha-varying a iszero expression properly?
+(test (alpha-vary (parse '(iszero 20))) (iszero (num 20)))
 ; * Is there an example of alpha-varying a bif expression properly?
 (test (alpha-vary (parse '(bif true 1 2))) (bif (bool #t) (num 1) (num 2)))
 ; * Is there an example of alpha-varying a id expression properly?
@@ -368,6 +369,7 @@
 (alpha-vary (parse '(+ (with (x 4) x) (with (x 5) x))))
 (alpha-vary (parse '(with (x 5) (with (x (+ x 6)) x))))
 ; * Is there an example of alpha-varying a rec expression properly?
+(alpha-vary (parse '(rec-with (x 20) x))) (rec-with 'x (num 20) (id 'x))
 ; * Is there an example of alpha-varying a fun expression properly?
 (alpha-vary (parse '(fun (x) x)))
 (alpha-vary (parse '(fun (x) (with (x x) x))))
@@ -385,7 +387,35 @@
 (test (alpha-vary (parse '(trest (tcons true tempty)))) (trest (tcons (bool #t) (tempty))))
 
 
-
+;Function: generate-constraints
+; * Is the function correct?
+; * Is the function documented correctly (i.e. contract and purpose statement)?
+; * Is there an example of generating constraints for a number expression?
+(generate-constraints (gensym) (alpha-vary (parse 6)))
+; * Is there an example of generating constraints for a true expression?
+(generate-constraints (gensym) (alpha-vary (parse 'true)))
+; * Is there an example of generating constraints for a false expression?
+(generate-constraints (gensym) (alpha-vary (parse 'false)))
+; * Is there an example of generating constraints for a + expression?
+(generate-constraints (gensym) (alpha-vary (parse '(+ 1 2))))
+; * Is there an example of generating constraints for a - expression?
+(generate-constraints (gensym) (alpha-vary (parse '(- 15 5))))
+; * Is there an example of generating constraints for a * expression?
+(generate-constraints (gensym) (alpha-vary (parse '(* 3 4))))
+; * Is there an example of generating constraints for a iszero expression?
+(generate-constraints (gensym) (alpha-vary (parse '(iszero 6))))
+; * Is there an example of generating constraints for a bif expression?
+(generate-constraints (gensym) (alpha-vary (parse '(bif true 13 14))))
+; * Is there an example of generating constraints for a id expression?
+; * Is there an example of generating constraints for a with expression?
+; * Is there an example of generating constraints for a rec expression?
+; * Is there an example of generating constraints for a fun expression?
+; * Is there an example of generating constraints for a app expression?
+; * Is there an example of generating constraints for a tempty expression?
+; * Is there an example of generating constraints for a tcons expression?
+; * Is there an example of generating constraints for a tempty? expression?
+; * Is there an example of generating constraints for a tfirst expression?
+; * Is there an example of generating constraints for a trest expression?
 
 
 
