@@ -156,9 +156,6 @@
                       (alpha-vary-rec expr Env))]
     ))
 
-(define (generate-constraints e-id e)
-  "not implemented")
-
 (define (unify loc)
   "not implemented")
 
@@ -244,6 +241,107 @@
       (error 'constraint-list=?
              "~s and ~a are not equal (modulo renaming)"
              lc1 lc2)))
+
+
+(define (generate-constraints e-id e)
+    (type-case Expr e
+    [num (n) (list (eqc (t-var e-id) (t-num)))]
+    [bin-num-op (op lhs rhs)
+          (local ([define l (gensym 'binop-lhs)])
+            (local([define r (gensym 'binop-rhs)])
+             (append (list (eqc (t-var e-id) (t-num))
+                           (eqc (t-var l) (t-num))
+                           (eqc (t-var r) (t-num)))
+                     (generate-constraints l lhs)
+                     (generate-constraints l lhs))))]
+    [bool (b) (list (eqc (t-var e-id) (t-bool)))]
+    [id (x) (list (eqc (t-var e-id) (t-var x)))]
+    [iszero (expr)
+            (local ([define isZ (gensym 'isZeroBody)])
+              (append
+                (list
+                   (eqc (t-var e-id) (t-bool))
+                    (eqc (t-var isZ) (t-num)))
+                (generate-constraints isZ expr)))]
+    [bif (c t f)
+          (local ([define co (gensym 'conditional)])
+            (local([define tr (gensym 'condTrue)])
+               (local([define fa (gensym 'condFalse)])
+                  (append (list (eqc (t-var e-id) (t-var tr))
+                                (eqc (t-var e-id) (t-var fa))
+                                (eqc (t-var co) (t-bool)))
+                          (generate-constraints co c)
+                          (generate-constraints tr t)
+                          (generate-constraints fa f)))))]
+    [with (bound-id bound-body body)
+         (local ([define bb (gensym 'withBoundBody)])
+           (local
+                ([define b  (gensym 'withBody)])
+             (append
+                  (list (eqc (t-var e-id) (t-var b))
+                        (eqc (t-var bound-id) (t-var bb))
+                             (generate-constraints bb bound-body)
+                             (generate-constraints b body)))))]
+    [rec-with (bound-id bound-body body)
+         (local ([define bb (gensym 'withBoundBody)])
+           (local ([define b  (gensym 'withBody)])
+             (append
+                  (list (eqc (t-var e-id) (t-var b))
+                        (eqc (t-var bound-id) (t-var bb))
+                             (generate-constraints bb bound-body)
+                             (generate-constraints b body)))))]
+    [fun (arg-id body)
+         (local ([define bod (gensym 'funcBody)])
+             (append
+                  (list (eqc (t-var e-id) (t-fun (t-var arg-id) (t-var bod))))
+                      (generate-constraints bod body)))]
+    [app (fun-expr arg-expr)
+         (local ([define func (gensym 'appfuncExpres)])
+           (local ([define arg (gensym 'appArg)])
+             (append
+                  (list (eqc (t-var func) (t-fun (t-var arg) e-id)))
+                      (generate-constraints func fun-expr)
+                      (generate-constraints arg arg-expr))))]
+    [tempty () (list (eqc (t-var e-id) (t-list (t-var (gensym 'listType)))))]
+    [tcons (first rest)
+        (local ([define f (gensym 'firstCons)])
+          (local ([define r (gensym 'restCons)])
+             (append
+                  (list
+                     (eqc (t-var e-id) (t-list (t-var f)))
+                     (eqc (t-var r) (t-list (t-var f))))
+                  (generate-constraints f first)
+                  (generate-constraints r rest))))]
+    [tfirst (expr)
+      (local ([define ex (gensym 'firstList)])
+        (local ([define f (gensym 'listType)])
+        (append
+           (list
+              (eqc (t-var e-id) (t-var f))
+              (eqc (t-var ex) (t-list (t-var f))))
+                (generate-constraints ex expr))))]
+    [trest (expr)
+      (local ([define ex (gensym 'restList)])
+        (local ([define f (gensym 'listType)])
+        (append
+           (list
+              (eqc (t-var e-id) (t-list (t-var f)))
+              (eqc (t-var ex) (t-list (t-var f))))
+                (generate-constraints ex expr))))]      
+    [istempty (expr)
+      (local ([define ex (gensym 'empty?List)])
+        (local ([define f (gensym 'listType)])
+           (append
+              (list
+                (eqc (t-var e-id) (t-bool))
+                (eqc (t-var ex) (t-list (t-var f))))
+                   (generate-constraints ex expr))))]
+    ))
+
+
+
+
+
 
 ;------------------------------------------------------------------------------
 ; Function: alpha-vary
