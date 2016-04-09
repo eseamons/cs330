@@ -256,7 +256,9 @@
 (define (unify-recursive list-of-const list-of-substitutions)
   (if (empty? list-of-const)
       (local ([define first-constraint (first list-of-const)])
-        "not implemented"
+        (local ([define rest-constraints (rest list-of-const)])
+          "not implemented"
+        )
       )
       list-of-substitutions))
 
