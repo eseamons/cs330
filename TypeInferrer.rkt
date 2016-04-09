@@ -168,7 +168,7 @@
                            (eqc (t-var l) (t-num))
                            (eqc (t-var r) (t-num)))
                      (generate-constraints l lhs)
-                     (generate-constraints l lhs))))]
+                     (generate-constraints r rhs))))]
     [bool (b) (list (eqc (t-var e-id) (t-bool)))]
     [id (x) (list (eqc (t-var e-id) (t-var x)))]
     [iszero (expr)
@@ -194,17 +194,17 @@
                 ([define b  (gensym 'withBody)])
              (append
                   (list (eqc (t-var e-id) (t-var b))
-                        (eqc (t-var bound-id) (t-var bb))
+                        (eqc (t-var bound-id) (t-var bb)))
                              (generate-constraints bb bound-body)
-                             (generate-constraints b body)))))]
+                             (generate-constraints b body))))]
     [rec-with (bound-id bound-body body)
          (local ([define bb (gensym 'withBoundBody)])
            (local ([define b  (gensym 'withBody)])
              (append
                   (list (eqc (t-var e-id) (t-var b))
-                        (eqc (t-var bound-id) (t-var bb))
+                        (eqc (t-var bound-id) (t-var bb)))
                              (generate-constraints bb bound-body)
-                             (generate-constraints b body)))))]
+                             (generate-constraints b body))))]
     [fun (arg-id body)
          (local ([define bod (gensym 'funcBody)])
              (append
@@ -214,7 +214,7 @@
          (local ([define func (gensym 'appfuncExpres)])
            (local ([define arg (gensym 'appArg)])
              (append
-                  (list (eqc (t-var func) (t-fun (t-var arg) e-id)))
+                  (list (eqc (t-var func) (t-fun (t-var arg) (t-var e-id))))
                       (generate-constraints func fun-expr)
                       (generate-constraints arg arg-expr))))]
     [tempty () (list (eqc (t-var e-id) (t-list (t-var (gensym 'listType)))))]
@@ -263,10 +263,15 @@
    (eq? (t-var-v (eqc-lhs constraint))
         (t-var-v (eqc-rhs constraint)))))
 
-(define (replace-id id value lst return-lst)
+(define (subst-id id value lst return-lst)
   (local ([define first-constraint (first lst)])
-    (local ([define new-first-constraint 2])
-      (replace-id id value lst (cons new-first-constraint return-lst))
+    (local ([define new-first-constraint
+              (eqc
+               (cond
+                 )
+               (cond
+                 )])
+      (subst-id id value (rest lst) (cons new-first-constraint return-lst))
     )))
 
 (define (unify-recursive list-of-const list-of-substitutions)
