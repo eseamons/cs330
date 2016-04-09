@@ -253,11 +253,31 @@
                    (generate-constraints ex expr))))]
     ))
 
+(define (extend-subst-list subst list-of-subst)
+  (cons subst list-of-subst))
+
+(define (equal-identifiers constraint)
+  (and
+   (t-var? (eqc-lhs constraint))
+   (t-var? (eqc-rhs constraint))
+   (eq? (t-var-v (eqc-lhs constraint))
+        (t-var-v (eqc-rhs constraint)))))
+
 (define (unify-recursive list-of-const list-of-substitutions)
   (if (empty? list-of-const)
       (local ([define first-constraint (first list-of-const)])
-        (local ([define rest-constraints (rest list-of-const)])
-          "not implemented"
+        (local ([define rest-of-const (rest list-of-const)])
+          (cond
+            ;1. If X and Y are identical identifiers, do nothing.
+            [(equal-identifiers first-constraint) 
+             (unify-recursive
+              rest-of-const
+              (extend-subst-list first-constraint list-of-substitutions))] ; 
+            [true (unify-recursive rest-of-const list-of-substitutions)]
+            [true (unify-recursive rest-of-const list-of-substitutions)]
+            [true (unify-recursive rest-of-const list-of-substitutions)]
+            [else (error 'unification "does not unify")]
+            )
         )
       )
       list-of-substitutions))
@@ -266,6 +286,7 @@
   (unify-recursive loc empty))
 
 (define (infer-type e)
+  "not implemented"
   )
 
 
