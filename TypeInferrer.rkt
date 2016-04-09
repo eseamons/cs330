@@ -425,10 +425,14 @@
 ; * Is there an example of generating constraints for a fun expression?
 ; * Is there an example of generating constraints for a app expression?
 ; * Is there an example of generating constraints for a tempty expression?
+(generate-constraints (gensym) (alpha-vary (parse 'tempty)))
 ; * Is there an example of generating constraints for a tcons expression?
+(generate-constraints (gensym) (alpha-vary (parse '(tcons true tempty))))
 ; * Is there an example of generating constraints for a tempty? expression?
 ; * Is there an example of generating constraints for a tfirst expression?
+(generate-constraints (gensym) (alpha-vary (parse '(tfirst (tcons true tempty)))))
 ; * Is there an example of generating constraints for a trest expression?
+(generate-constraints (gensym) (alpha-vary (parse '(trest (tcons true tempty)))))
 
 
 
