@@ -273,8 +273,10 @@
              (unify-recursive
               rest-of-const
               (extend-subst-list first-constraint list-of-substitutions))]
-            [true (unify-recursive rest-of-const list-of-substitutions)]
-            [true (unify-recursive rest-of-const list-of-substitutions)]
+            [(t-var? (eqc-lhs first-constraint))
+              (unify-recursive rest-of-const list-of-substitutions)]
+            [(t-var? (eqc-lhs first-constraint))
+             (unify-recursive rest-of-const list-of-substitutions)]
             [true (unify-recursive rest-of-const list-of-substitutions)]
             [else (error 'unification "does not unify")]
             )
