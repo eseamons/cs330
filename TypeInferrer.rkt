@@ -264,15 +264,21 @@
         (t-var-v (eqc-rhs constraint)))))
 
 (define (subst-id id value lst return-lst)
+  (if (not (empty? lst))
   (local ([define first-constraint (first lst)])
     (local ([define new-first-constraint
               (eqc
-               (cond
-                 )
-               (cond
-                 )])
+               (if (and (t-var? (eqc-lhs first-constraint)) (eq? (t-var-v (eqc-lhs first-constraint)) id))
+                  value
+                  (eqc-lhs first-constraint))
+               (if (and (t-var? (eqc-rhs first-constraint)) (eq? (t-var-v (eqc-lhs first-constraint)) id))
+                  value
+                  (eqc-rhs first-constraint)))])
+      
       (subst-id id value (rest lst) (cons new-first-constraint return-lst))
-    )))
+    ))
+  return-lst))
+
 
 (define (unify-recursive list-of-const list-of-substitutions)
   (if (not (empty? list-of-const))
@@ -286,9 +292,8 @@
               (extend-subst-list first-constraint list-of-substitutions))]
             [(t-var? (eqc-lhs first-constraint))
               (unify-recursive rest-of-const list-of-substitutions)]
-            [(t-var? (eqc-lhs first-constraint))
+            [(t-var? (eqc-rhs first-constraint))
              (unify-recursive rest-of-const list-of-substitutions)]
-            [true (unify-recursive rest-of-const list-of-substitutions)]
             [else (error 'unification "does not unify")]
             )
         )
