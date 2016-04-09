@@ -266,7 +266,7 @@
   (unify-recursive loc empty))
 
 (define (infer-type e)
-  "not implemented")
+  )
 
 
 
