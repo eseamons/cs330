@@ -264,7 +264,7 @@
         (t-var-v (eqc-rhs constraint)))))
 
 (define (unify-recursive list-of-const list-of-substitutions)
-  (if (empty? list-of-const)
+  (if (not (empty? list-of-const))
       (local ([define first-constraint (first list-of-const)])
         (local ([define rest-of-const (rest list-of-const)])
           (cond
@@ -272,7 +272,7 @@
             [(equal-identifiers first-constraint) 
              (unify-recursive
               rest-of-const
-              (extend-subst-list first-constraint list-of-substitutions))] ; 
+              (extend-subst-list first-constraint list-of-substitutions))]
             [true (unify-recursive rest-of-const list-of-substitutions)]
             [true (unify-recursive rest-of-const list-of-substitutions)]
             [true (unify-recursive rest-of-const list-of-substitutions)]
@@ -280,6 +280,7 @@
             )
         )
       )
+      ; else return list of substitutions
       list-of-substitutions))
 
 (define (unify loc)
