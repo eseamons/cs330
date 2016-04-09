@@ -263,6 +263,12 @@
    (eq? (t-var-v (eqc-lhs constraint))
         (t-var-v (eqc-rhs constraint)))))
 
+(define (replace-id id value lst return-lst)
+  (local ([define first-constraint (first lst)])
+    (local ([define new-first-constraint 2])
+      (replace-id id value lst (cons new-first-constraint return-lst))
+    )))
+
 (define (unify-recursive list-of-const list-of-substitutions)
   (if (not (empty? list-of-const))
       (local ([define first-constraint (first list-of-const)])
@@ -428,35 +434,132 @@
 ; * Is the function correct?
 ; * Is the function documented correctly (i.e. contract and purpose statement)?
 ; * Is there an example of generating constraints for a number expression?
-(generate-constraints (gensym) (alpha-vary (parse 6)))
+((constraint-list=? (generate-constraints (gensym) (alpha-vary (parse 6))))
+                    (list (eqc (t-var (gensym)) (t-num))))
 ; * Is there an example of generating constraints for a true expression?
-(generate-constraints (gensym) (alpha-vary (parse 'true)))
+((constraint-list=? (generate-constraints (gensym) (alpha-vary (parse 'true))))
+                    (list (eqc (t-var 'g23372) (t-bool))))
 ; * Is there an example of generating constraints for a false expression?
-(generate-constraints (gensym) (alpha-vary (parse 'false)))
+((constraint-list=? (generate-constraints (gensym) (alpha-vary (parse 'false))))
+                    (list (eqc (t-var 'g23372) (t-bool))))
 ; * Is there an example of generating constraints for a + expression?
-(generate-constraints (gensym) (alpha-vary (parse '(+ 1 2))))
+((constraint-list=? (generate-constraints (gensym) (alpha-vary (parse '(+ 1 2)))))
+                    (list
+                      (eqc (t-var 'g34286) (t-num))
+                      (eqc (t-var 'binop-lhs34287) (t-num))
+                      (eqc (t-var 'binop-rhs34288) (t-num))
+                      (eqc (t-var 'binop-lhs34287) (t-num))
+                      (eqc (t-var 'binop-rhs34288) (t-num))))
 ; * Is there an example of generating constraints for a - expression?
-(generate-constraints (gensym) (alpha-vary (parse '(- 15 5))))
+((constraint-list=? (generate-constraints (gensym) (alpha-vary (parse '(- 15 5)))))
+                    (list
+                      (eqc (t-var 'g34286) (t-num))
+                      (eqc (t-var 'binop-lhs34287) (t-num))
+                      (eqc (t-var 'binop-rhs34288) (t-num))
+                      (eqc (t-var 'binop-lhs34287) (t-num))
+                      (eqc (t-var 'binop-rhs34288) (t-num))))
 ; * Is there an example of generating constraints for a * expression?
-(generate-constraints (gensym) (alpha-vary (parse '(* 3 4))))
+((constraint-list=? (generate-constraints (gensym) (alpha-vary (parse '(* 3 4)))))
+                    (list
+                      (eqc (t-var 'g34286) (t-num))
+                      (eqc (t-var 'binop-lhs34287) (t-num))
+                      (eqc (t-var 'binop-rhs34288) (t-num))
+                      (eqc (t-var 'binop-lhs34287) (t-num))
+                      (eqc (t-var 'binop-rhs34288) (t-num))))
 ; * Is there an example of generating constraints for a iszero expression?
-(generate-constraints (gensym) (alpha-vary (parse '(iszero 6))))
+((constraint-list=? (generate-constraints (gensym) (alpha-vary (parse '(iszero 6)))))
+                   (list
+                    (eqc (t-var 'g51412) (t-bool))
+                    (eqc (t-var 'isZeroBody51413) (t-num))
+                    (eqc (t-var 'isZeroBody51413) (t-num))))
 ; * Is there an example of generating constraints for a bif expression?
-(generate-constraints (gensym) (alpha-vary (parse '(bif true 13 14))))
+((constraint-list=? (generate-constraints (gensym) (alpha-vary (parse '(bif true 13 14)))))
+                   (list
+                    (eqc (t-var 'g56935) (t-var 'condTrue56937))
+                    (eqc (t-var 'g56935) (t-var 'condFalse56938))
+                    (eqc (t-var 'conditional56936) (t-bool))
+                    (eqc (t-var 'conditional56936) (t-bool))
+                    (eqc (t-var 'condTrue56937) (t-num))
+                    (eqc (t-var 'condFalse56938) (t-num))))
 ; * Is there an example of generating constraints for a id expression?
+((constraint-list=? (generate-constraints (gensym) (alpha-vary (parse '(with  [x 5] x)))))
+                   (list
+                     (eqc (t-var 'g110324) (t-var 'withBody110327))
+                     (eqc (t-var 'x110325) (t-var 'withBoundBody110326))
+                     (eqc (t-var 'withBoundBody110326) (t-num))
+                     (eqc (t-var 'withBody110327) (t-var 'x110325))))
 ; * Is there an example of generating constraints for a with expression?
+((constraint-list=? (generate-constraints (gensym) (alpha-vary (parse '(with  [x 5] (+ x 5))))))
+                   (list
+                    (eqc (t-var 'g164392) (t-var 'withBody164395))
+                    (eqc (t-var 'x164393) (t-var 'withBoundBody164394))
+                    (eqc (t-var 'withBoundBody164394) (t-num))
+                    (eqc (t-var 'withBody164395) (t-num))
+                    (eqc (t-var 'binop-lhs164396) (t-num))
+                    (eqc (t-var 'binop-rhs164397) (t-num))
+                    (eqc (t-var 'binop-lhs164396) (t-var 'x164393))
+                    (eqc (t-var 'binop-rhs164397) (t-num))))
 ; * Is there an example of generating constraints for a rec expression?
+((constraint-list=? (generate-constraints (gensym) (alpha-vary (parse '(rec-with [f (fun (x) (f 1))] (f 2))))))
+                  (list
+                   (eqc (t-var 'g198450) (t-var 'withBody198454))
+                   (eqc (t-var 'f198451) (t-var 'withBoundBody198453))
+                   (eqc (t-var 'withBoundBody198453) (t-fun (t-var 'x198452) (t-var 'funcBody198455)))
+                   (eqc (t-var 'appfuncExpres198456) (t-fun (t-var 'appArg198457) (t-var 'funcBody198455)))
+                   (eqc (t-var 'appfuncExpres198456) (t-var 'f198451))
+                   (eqc (t-var 'appArg198457) (t-num))
+                   (eqc (t-var 'appfuncExpres198458) (t-fun (t-var 'appArg198459) (t-var 'withBody198454)))
+                   (eqc (t-var 'appfuncExpres198458) (t-var 'f198451))
+                   (eqc (t-var 'appArg198459) (t-num))))
 ; * Is there an example of generating constraints for a fun expression?
+((constraint-list=? (generate-constraints (gensym) (alpha-vary (parse '(fun (x) (+ x 2))))))
+                  (list
+                   (eqc (t-var 'g221456) (t-fun (t-var 'x221457) (t-var 'funcBody221458)))
+                   (eqc (t-var 'funcBody221458) (t-num))
+                   (eqc (t-var 'binop-lhs221459) (t-num))
+                   (eqc (t-var 'binop-rhs221460) (t-num))
+                   (eqc (t-var 'binop-lhs221459) (t-var 'x221457))
+                   (eqc (t-var 'binop-rhs221460) (t-num))))
 ; * Is there an example of generating constraints for a app expression?
+((constraint-list=? (generate-constraints (gensym) (alpha-vary (parse '( (fun (x) (+ x 2)) 7)))))
+                  (list
+                   (eqc (t-var 'appfuncExpres238607) (t-fun (t-var 'appArg238608) (t-var 'g238605)))
+                   (eqc (t-var 'appfuncExpres238607) (t-fun (t-var 'x238606) (t-var 'funcBody238609)))
+                   (eqc (t-var 'funcBody238609) (t-num))
+                   (eqc (t-var 'binop-lhs238610) (t-num))
+                   (eqc (t-var 'binop-rhs238611) (t-num))
+                   (eqc (t-var 'binop-lhs238610) (t-var 'x238606))
+                   (eqc (t-var 'binop-rhs238611) (t-num))
+                   (eqc (t-var 'appArg238608) (t-num))))
 ; * Is there an example of generating constraints for a tempty expression?
-(generate-constraints (gensym) (alpha-vary (parse 'tempty)))
+((constraint-list=? (generate-constraints (gensym) (alpha-vary (parse 'tempty))))
+                    (list (eqc (t-var 'g63109) (t-list (t-var 'listType63110)))))
 ; * Is there an example of generating constraints for a tcons expression?
-(generate-constraints (gensym) (alpha-vary (parse '(tcons true tempty))))
-; * Is there an example of generating constraints for a tempty? expression?
+((constraint-list=? (generate-constraints (gensym) (alpha-vary (parse '(tcons true tempty)))))
+                    (list
+                     (eqc (t-var 'g69141) (t-list (t-var 'firstCons69142)))
+                     (eqc (t-var 'restCons69143) (t-list (t-var 'firstCons69142)))
+                     (eqc (t-var 'firstCons69142) (t-bool))
+                     (eqc (t-var 'restCons69143) (t-list (t-var 'listType69144))))) 
 ; * Is there an example of generating constraints for a tfirst expression?
-(generate-constraints (gensym) (alpha-vary (parse '(tfirst (tcons true tempty)))))
+((constraint-list=? (generate-constraints (gensym) (alpha-vary (parse '(tfirst (tcons true tempty))))))
+                    (list
+                      (eqc (t-var 'g80470) (t-var 'listType80472))
+                      (eqc (t-var 'firstList80471) (t-list (t-var 'listType80472)))
+                      (eqc (t-var 'firstList80471) (t-list (t-var 'firstCons80473)))
+                      (eqc (t-var 'restCons80474) (t-list (t-var 'firstCons80473)))
+                      (eqc (t-var 'firstCons80473) (t-bool))
+                      (eqc (t-var 'restCons80474) (t-list (t-var 'listType80475)))))
+
 ; * Is there an example of generating constraints for a trest expression?
-(generate-constraints (gensym) (alpha-vary (parse '(trest (tcons true tempty)))))
+((constraint-list=? (generate-constraints (gensym) (alpha-vary (parse '(trest (tcons true tempty))))))
+                    (list
+                      (eqc (t-var 'g87084) (t-list (t-var 'listType87086)))
+                      (eqc (t-var 'restList87085) (t-list (t-var 'listType87086)))
+                      (eqc (t-var 'restList87085) (t-list (t-var 'firstCons87087)))
+                      (eqc (t-var 'restCons87088) (t-list (t-var 'firstCons87087)))
+                      (eqc (t-var 'firstCons87087) (t-bool))
+                      (eqc (t-var 'restCons87088) (t-list (t-var 'listType87089)))))
 
 
 
